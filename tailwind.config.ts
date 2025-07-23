@@ -1,8 +1,8 @@
+// tailwind.config.ts
 import type { Config } from "tailwindcss";
 
 const config = {
   content: [
-    // Correct paths pointing inside the 'src' directory
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
     "./src/components/**/*.{js,ts,jsx,tsx,mdx}",
   ],
@@ -21,7 +21,11 @@ const config = {
       },
       boxShadow: {
         soft: "0 4px 30px rgba(0, 0, 0, 0.1)",
+        gentle: "var(--shadow-gentle)",
+        warm: "var(--shadow-warm)",
+        faith: "var(--shadow-faith)",
       },
+      // CHANGE: The backgroundImage key has been removed, as it's now handled in globals.css
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -31,6 +35,8 @@ const config = {
         primary: {
           DEFAULT: "hsl(var(--primary))",
           foreground: "hsl(var(--primary-foreground))",
+          soft: "hsl(var(--primary-soft))",
+          light: "hsl(var(--primary-light))",
         },
         secondary: {
           DEFAULT: "hsl(var(--secondary))",
@@ -56,11 +62,16 @@ const config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        "faith-gold": "hsl(var(--faith-gold))",
+        "faith-light": "hsl(var(--faith-light))",
+        "hope-blue": "hsl(var(--hope-blue))",
+        "love-rose": "hsl(var(--love-rose))",
       },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        "3xl": "calc(var(--radius) * 1.5)",
       },
       keyframes: {
         "accordion-down": {

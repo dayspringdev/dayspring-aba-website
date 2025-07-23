@@ -385,13 +385,6 @@ export default function IntakePage() {
         <div className="w-full flex justify-center text-left">
           {renderStepContent()}
         </div>
-        {step < 4 && (
-          <div>
-            <Link href="/contact">
-              <Button variant="outline">← Back to General Contact</Button>
-            </Link>
-          </div>
-        )}
       </div>
     </div>
   );

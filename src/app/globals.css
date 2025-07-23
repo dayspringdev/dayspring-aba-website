@@ -6,7 +6,7 @@
   --background-start-rgb: 240, 245, 250; /* A very light blue-gray */
   --background-end-rgb: 255, 255, 255; /* White */
   --foreground: #111827; /* Darker text for better contrast */
-  --primary: #0077b6; /* Your original light theme primary color */
+  --primary: #1470af; /* Your original light theme primary color */
   --primary-foreground: #ffffff; /* White for contrast */
   --muted: #4b5563;
   --muted-foreground: #6b7280;
@@ -100,28 +100,45 @@ h3 {
   letter-spacing: -0.025em;
 }
 
-/* Nav Link Animation */
+/* === Nav Link Hover Animation === */
 .nav-link {
+  /* This is crucial for positioning the pseudo-element relative to the link */
   position: relative;
+  /* Removes default browser underline */
   text-decoration: none;
+  /* A nice touch to make the text color change smoothly */
   transition: color 0.3s ease-in-out;
 }
 
+/* This is the underline itself, created with a pseudo-element */
 .nav-link::after {
+  /* Required for a pseudo-element to exist */
   content: "";
+  /* Position it relative to the .nav-link parent */
   position: absolute;
+  /* Make it span the full width of the link text */
   width: 100%;
+  /* The line will start with zero width and expand on hover */
   transform: scaleX(0);
-  height: 2px;
+  /* The thickness of the underline */
+  height: 1px;
+  /* Position it just below the text. Adjust this value if needed. */
   bottom: -4px;
+  /* Start the line from the left edge */
   left: 0;
+  /* Use your site's primary color variable for the line */
   background-color: var(--primary);
+  /* This tells the animation to grow from the left side */
   transform-origin: bottom left;
+  /* The animation speed and easing */
   transition: transform 0.3s ease-out;
 }
 
+/* This is what happens when you hover over the link */
 .nav-link:hover::after {
+  /* Animate the line to its full width */
   transform: scaleX(1);
+  /* We can also set the origin for the reverse animation if desired */
   transform-origin: bottom left;
 }
 

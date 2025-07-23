@@ -8,11 +8,15 @@ const nextConfig = {
         port: "",
         pathname: "/api/portraits/**",
       },
-      // Add this new block for Unsplash images
       {
         protocol: "https",
         hostname: "images.unsplash.com",
       },
+      {
+        protocol: "https",
+        hostname: "idmsergkxsuvxvvjoibb.supabase.co",
+      },
+      // ----------------------
     ],
   },
 };

@@ -4,75 +4,103 @@
 
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useLenis } from "@/context/LenisContext"; // 1. IMPORT useLenis
+import { useLenis } from "@/context/LenisContext";
+import { usePathname } from "next/navigation";
+import Image from "next/image"; // 1. IMPORT the Image component
 
 export function Header() {
-  const lenis = useLenis(); // 2. GET the Lenis instance
+  const lenis = useLenis();
+  const pathname = usePathname();
 
-  // 3. CREATE a scroll handler function
-  const handleScrollTo = (targetId: string) => {
-    // Check if Lenis is available
-    if (lenis) {
-      // Use the scrollTo method with an offset to account for the sticky header
-      // h-24 is 96px, so we use a negative offset.
-      lenis.scrollTo(targetId, { offset: -96 });
+  const handleNavigation = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    targetId: string
+  ) => {
+    if (pathname === "/") {
+      e.preventDefault();
+      if (lenis) {
+        lenis.scrollTo(targetId, { offset: -96 });
+      }
     }
   };
 
-  const handleScrollToTop = () => {
-    if (lenis) {
-      lenis.scrollTo(0);
+  const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (pathname === "/") {
+      e.preventDefault();
+      if (lenis) {
+        lenis.scrollTo(0);
+      }
     }
   };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur-sm">
-      <div className="container mx-auto flex h-24 max-w-8xl items-center justify-between px-4 sm:px-6 lg:px-8">
-        {/* === Left Navigation Links === */}
+      <div className="container mx-auto flex h-36 max-w-8xl items-center justify-between px-4 sm:px-6 lg:px-8">
+        {/* === Left Navigation Links (Unchanged) === */}
         <nav className="flex w-1/3 items-center justify-start gap-10 text-md font-medium">
-          {/* 4. CHANGE Links to Buttons with onClick handlers */}
-          <button
-            onClick={() => handleScrollTo("#services")}
+          <Link
+            href="/#services"
+            onClick={(e) => handleNavigation(e, "#services")}
             className="nav-link text-muted-foreground hover:text-primary tracking-tight font-thin ease-in-out"
           >
             Services
-          </button>
-          <button
-            onClick={() => handleScrollTo("#about")}
+          </Link>
+          <Link
+            href="/#about"
+            onClick={(e) => handleNavigation(e, "#about")}
             className="nav-link text-muted-foreground hover:text-primary tracking-tight font-extralight ease-in-out"
           >
             About
-          </button>
-          <button
-            onClick={() => handleScrollTo("#faq")}
+          </Link>
+          <Link
+            href="/#faq"
+            onClick={(e) => handleNavigation(e, "#faq")}
             className="nav-link text-muted-foreground hover:text-primary tracking-tight font-extralight ease-in-out"
           >
             FAQ
-          </button>
-          <button
-            onClick={() => handleScrollTo("#contact")}
+          </Link>
+          <Link
+            href="/#contact"
+            onClick={(e) => handleNavigation(e, "#contact")}
             className="nav-link text-muted-foreground hover:text-primary tracking-tight font-extralight ease-in-out"
           >
             Contact
-          </button>
+          </Link>
         </nav>
 
-        {/* === Centered Logo (this remains a Link) === */}
+        {/* === Centered Logo (UPDATED) === */}
+        {/* === Centered Logo (UPDATED) === */}
         <div className="flex w-1/3 justify-center">
-          <button
-            onClick={handleScrollToTop}
-            className="flex flex-col items-center text-center"
+          <Link
+            href="/"
+            onClick={handleLogoClick}
+            className="flex items-center gap-2"
           >
-            <h1 className="text-4xl font-bold tracking-wide text-primary">
-              Dayspring Behavioural
-            </h1>
-            <p className="text-xs tracking-widest text-muted-foreground">
-              THERAPEUTIC SERVICES
-            </p>
-          </button>
+            {/* Child 1: The Logo Image */}
+            <Image
+              src="/logo.svg"
+              alt="Dayspring Behavioural Therapeutic Services Logo"
+              width={120}
+              height={120}
+              priority
+            />
+
+            {/* Child 2: The Text Container */}
+            <div className="flex flex-col">
+              {/* === THE REAL FIX IS HERE === */}
+              {/* By wrapping each word in a block-level span, we force the h1 to be only as wide as the longest word. */}
+              <h1 className="text-4xl font-bold tracking-wide text-primary">
+                <span className="block">Dayspring</span>
+                <span className="block">Behavioural</span>
+              </h1>
+              <p className="text-xs tracking-widest text-muted-foreground">
+                THERAPEUTIC SERVICES
+              </p>
+            </div>
+          </Link>
         </div>
 
-        {/* === Right Contact Button (this remains a Link to a different page) === */}
+        {/* === Right Contact Button (Unchanged) === */}
         <div className="flex w-1/3 justify-end">
           <Button
             asChild

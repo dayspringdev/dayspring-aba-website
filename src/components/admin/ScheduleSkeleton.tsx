@@ -1,36 +1,30 @@
+// src/components/admin/ScheduleSkeleton.tsx
+
 import { Skeleton } from "@/components/ui/skeleton";
 
 /**
- * A dedicated skeleton loading component for the weekly schedule UI.
- * It mimics the layout of the actual schedule rows to prevent layout shift.
+ * A dedicated skeleton that mimics the layout of the ScheduleSummary component.
  */
 export function ScheduleSkeleton() {
-  // We can create an array of a few placeholders to show a list loading.
-  const placeholders = Array.from({ length: 5 });
+  // Create 7 placeholder rows, one for each day of the week.
+  const placeholders = Array.from({ length: 7 });
 
   return (
     <div className="space-y-4">
       {placeholders.map((_, index) => (
         <div
           key={index}
-          className="flex flex-col gap-4 rounded-md border p-4 sm:flex-row sm:items-center"
+          className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-md border p-4 "
         >
-          {/* Left side: Checkbox and Label */}
-          <div className="flex flex-1 items-center">
-            <Skeleton className="h-4 w-4" />
-            <Skeleton className="ml-3 h-4 w-28" />
-          </div>
+          {/* Left Side: Day Label Placeholder */}
+          <Skeleton className="h-6 w-24 shrink-0 rounded-xs" />
 
-          {/* Right side: Time inputs */}
-          <div className="grid flex-1 grid-cols-2 gap-4">
-            <div className="space-y-1">
-              <Skeleton className="h-4 w-12" />
-              <Skeleton className="h-9 w-full" />
-            </div>
-            <div className="space-y-1">
-              <Skeleton className="h-4 w-8" />
-              <Skeleton className="h-9 w-full" />
-            </div>
+          {/* Right Side: Time Slots Placeholder */}
+          <div className="flex flex-wrap gap-2">
+            {/* Render a few placeholder time slots to look realistic */}
+            {Array.from({ length: 12 }).map((_, slotIndex) => (
+              <Skeleton key={slotIndex} className="h-10 w-28 rounded-xs" />
+            ))}
           </div>
         </div>
       ))}

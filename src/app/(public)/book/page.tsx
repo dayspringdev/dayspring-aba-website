@@ -3,7 +3,6 @@
 
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-// --- CHANGE: Import new date-fns functions ---
 import {
   format,
   parseISO,
@@ -26,8 +25,9 @@ import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { CalendarSkeleton } from "@/components/CalendarSkeleton"; // 1. IMPORT the new skeleton
 
-export default function IntakePage() {
+export default function BookPage() {
   const [step, setStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
@@ -46,10 +46,13 @@ export default function IntakePage() {
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
 
   const timeListRef = useRef<HTMLDivElement>(null);
+  const isAnythingLoading = isLoadingAvailability || isLoadingTimes;
 
   // --- Fetch unavailable dates for the ENTIRE VISIBLE calendar grid ---
   useEffect(() => {
     setIsLoadingAvailability(true);
+    // 3. CLEAR old data immediately to prevent flicker
+    setUnavailableDates([]);
 
     // --- CHANGE: Calculate the full visible date range ---
     const firstDayOfMonth = startOfMonth(currentMonth);
@@ -123,7 +126,11 @@ export default function IntakePage() {
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
 
+  // 4. UPDATE isDateDisabled to be safe during loading
   const isDateDisabled = (date: Date) => {
+    // While loading, disable all dates to prevent interaction
+    if (isLoadingAvailability) return true;
+
     const today = startOfDay(new Date());
     if (date < today) return true;
     return unavailableDates.some(
@@ -155,27 +162,24 @@ export default function IntakePage() {
             </CardHeader>
             <CardContent className="relative p-0 md:pr-48 flex justify-around">
               <div className="p-8 ">
-                <Calendar
-                  mode="single"
-                  selected={selectedDate}
-                  onSelect={setSelectedDate}
-                  month={currentMonth}
-                  onMonthChange={setCurrentMonth}
-                  disabled={isDateDisabled}
-                  modifiers={{ unavailable: unavailableDates }}
-                  // --- CHANGE: Improved styling for unavailable dates ---
-                  modifiersClassNames={{
-                    unavailable: "text-foreground/60 line-through",
-                  }}
-                  className="bg-transparent p-0 [--cell-size:--spacing(10)] md:[--cell-size:--spacing(12)]"
-                  footer={
-                    isLoadingAvailability ? (
-                      <p className="text-center text-sm text-muted-foreground pt-2 animate-pulse">
-                        Checking availability...
-                      </p>
-                    ) : null
-                  }
-                />
+                {/* 5. ADD conditional rendering for the skeleton */}
+                {isLoadingAvailability ? (
+                  <CalendarSkeleton />
+                ) : (
+                  <Calendar
+                    mode="single"
+                    selected={selectedDate}
+                    onSelect={setSelectedDate}
+                    month={currentMonth}
+                    onMonthChange={setCurrentMonth}
+                    disabled={isDateDisabled} // This now also uses isLoadingAvailability
+                    modifiers={{ unavailable: unavailableDates }}
+                    modifiersClassNames={{
+                      unavailable: "text-foreground/60 line-through",
+                    }}
+                    className="bg-transparent p-0"
+                  />
+                )}
               </div>
               <div
                 ref={timeListRef}
@@ -233,7 +237,8 @@ export default function IntakePage() {
               </div>
               <Button
                 onClick={() => setStep(2)}
-                disabled={!selectedDate || !selectedTime}
+                // 6. UPDATE the disabled logic
+                disabled={!selectedDate || !selectedTime || isAnythingLoading}
                 className="w-full md:ml-auto md:w-auto"
               >
                 Next

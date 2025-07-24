@@ -1,4 +1,5 @@
 // src/components/FAQ.tsx
+"use client";
 
 import {
   Accordion,
@@ -6,10 +7,21 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import Link from "next/link"; // Import Link for the CTA
+import { Button } from "@/components/ui/button"; // 2. IMPORT the Button component
+import { useLenis } from "@/context/LenisContext"; // 3. IMPORT useLenis
 import { AnimatedSection } from "./AnimatedSection";
 
 const FAQ = () => {
+  const lenis = useLenis(); // 4. GET the Lenis instance
+
+  // 5. CREATE a scroll handler function
+  const handleScrollToContact = () => {
+    if (lenis) {
+      // Use the same offset as the header for consistency
+      lenis.scrollTo("#contact", { offset: -96 });
+    }
+  };
+
   const faqs = [
     {
       question: "What is Applied Behavior Analysis (ABA) therapy?",
@@ -87,12 +99,13 @@ const FAQ = () => {
             Still have questions? We&apos;re here to help and would love to chat
             with you.
           </p>
-          <Link
-            href="/contact"
-            className="inline-flex items-center px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary-soft transition-colors shadow-gentle"
+          <Button
+            onClick={handleScrollToContact}
+            size="lg"
+            className="shadow-gentle"
           >
             Get in Touch
-          </Link>
+          </Button>
         </div>
       </div>
     </AnimatedSection>

@@ -4,7 +4,8 @@
 
 import Link from "next/link";
 import { useLenis } from "@/context/LenisContext";
-import { Mail, Instagram } from "lucide-react"; // Imported Instagram for consistency
+import { Mail, Instagram } from "lucide-react";
+import Image from "next/image";
 
 export function Footer() {
   const lenis = useLenis();
@@ -13,7 +14,7 @@ export function Footer() {
     if (lenis) {
       const targetElement = document.querySelector(targetId);
       if (targetElement instanceof HTMLElement) {
-        lenis.scrollTo(targetElement, { offset: -96 }); // Adjusted for h-24 header
+        lenis.scrollTo(targetElement, { offset: -96 });
       }
     }
   };
@@ -25,27 +26,40 @@ export function Footer() {
   };
 
   return (
-    // CHANGE: Removed id="contact" to avoid duplicate IDs.
-    // The main contact section on the homepage already has this ID.
     <footer className="w-full border-t border-border/50 bg-primary text-primary-foreground">
       <div className="container mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 py-12 sm:px-6 md:grid-cols-3 lg:px-8">
         {/* Column 1: DBTS Section */}
         <div>
           <button
             onClick={handleScrollToTop}
-            className="text-2xl font-bold text-primary-foreground text-left"
+            className="flex items-center gap-3 text-left"
           >
-            Dayspring Behavioral
+            <Image
+              src="/logo.svg"
+              alt="Dayspring Behavioural Therapeutic Services Logo"
+              width={90}
+              height={90}
+            />
+            <div className="flex flex-col">
+              <h3 className="text-2xl font-bold tracking-wide text-primary-foreground">
+                <span className="block">Dayspring</span>
+                <span className="block">Behavioural</span>
+              </h3>
+              {/* === THE FIX IS HERE === */}
+              {/* Added the missing subtitle <p> tag */}
+              <p className="text-xs tracking-widest text-primary-foreground/80">
+                THERAPEUTIC SERVICES
+              </p>
+            </div>
           </button>
-          <p className="mt-2 text-sm text-primary-foreground/80">
+
+          <p className="mt-4 text-sm text-primary-foreground/80">
             Providing compassionate care for a brighter tomorrow.
           </p>
         </div>
 
-        {/* === MAIN CHANGE: WRAPPER DIV === */}
-        {/* This new div wraps the next two sections. It spans 2 columns on medium screens. */}
+        {/* Other columns are unchanged */}
         <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-8">
-          {/* Column 2: Navigation Section (Now inside the wrapper) */}
           <div>
             <h4 className="font-semibold text-primary-foreground">
               Navigation
@@ -54,7 +68,7 @@ export function Footer() {
               <li>
                 <button
                   onClick={() => handleScrollTo("#about")}
-                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground"
+                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out"
                 >
                   About
                 </button>
@@ -62,7 +76,7 @@ export function Footer() {
               <li>
                 <button
                   onClick={() => handleScrollTo("#services")}
-                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground"
+                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out"
                 >
                   Services
                 </button>
@@ -70,7 +84,7 @@ export function Footer() {
               <li>
                 <button
                   onClick={() => handleScrollTo("#faq")}
-                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground"
+                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out"
                 >
                   FAQ
                 </button>
@@ -78,15 +92,13 @@ export function Footer() {
               <li>
                 <button
                   onClick={() => handleScrollTo("#contact")}
-                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground"
+                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out"
                 >
                   Contact
                 </button>
               </li>
             </ul>
           </div>
-
-          {/* Column 3: Contact Info (Now inside the wrapper) */}
           <div>
             <h4 className="font-semibold text-primary-foreground mb-4">
               Get In Touch
@@ -124,7 +136,7 @@ export function Footer() {
         </div>
       </div>
 
-      {/* Bottom Copyright Section */}
+      {/* Bottom Copyright Section (Unchanged) */}
       <div className="border-t border-primary-foreground/20 py-6">
         <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 text-center sm:flex-row sm:px-6 lg:px-8">
           <p className="text-sm text-primary-foreground/80">
@@ -133,7 +145,7 @@ export function Footer() {
           </p>
           <Link
             href="/login"
-            className="text-xs text-primary-foreground/60 transition-colors hover:text-primary-foreground"
+            className="text-xs text-primary-foreground/60 transition-colors hover:text-primary-foreground ease-in-out"
           >
             Admin Login
           </Link>

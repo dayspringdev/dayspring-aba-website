@@ -84,7 +84,7 @@ export default function AvailabilityPage() {
       setSelectedDays(new Set(data.map((r) => r.day_of_week)));
       setOriginalRules(data);
       setOriginalSelectedDays(new Set(data.map((r) => r.day_of_week)));
-    } catch (error) {
+    } catch {
       toast.error("Failed to load schedule.");
     } finally {
       setIsLoading(false);

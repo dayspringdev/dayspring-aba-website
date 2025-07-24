@@ -43,6 +43,9 @@ export function ScheduleSummary({ rules, onEdit }: ScheduleSummaryProps) {
           Edit Schedule
         </Button>
       </div>
+      {/* Render for side by side
+      <ScheduleSkeleton /> */}
+
       <div className="space-y-4">
         {daysOrder.map((dayId) => {
           const rule = rulesByDay.get(dayId);
@@ -65,9 +68,9 @@ export function ScheduleSummary({ rules, onEdit }: ScheduleSummaryProps) {
           return (
             <div
               key={dayId}
-              className="flex flex-col sm:flex-row sm:items-start gap-4 rounded-md border border-foreground/20 p-4"
+              className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-md border border-foreground/20 p-4"
             >
-              <p className="font-medium w-24 shrink-0">{dayLabels[dayId]}</p>
+              <p className="font-semibold w-24 shrink-0">{dayLabels[dayId]}</p>
               <div className="flex flex-wrap gap-2">
                 {rule.available_slots.map((slot) => (
                   <div

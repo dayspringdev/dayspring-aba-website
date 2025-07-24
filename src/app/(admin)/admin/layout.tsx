@@ -40,13 +40,13 @@ export default function AdminLayout({
 
   return (
     <div className="flex min-h-screen w-full">
-      <aside className="sticky top-0 flex h-screen w-64 flex-col border-r shadow-none border-foreground/20 bg-card p-4">
+      <aside className="sticky top-0 flex h-screen w-64 flex-col border-r shadow-none border-foreground/20 bg-card p-6">
         <div className="flex-grow">
           <div className="mb-8 flex items-center gap-2">
             <Link href="/" className="flex items-center">
               <span className="text-xl font-bold text-primary">DBTS</span>
             </Link>
-            <span className="rounded-md border bg-muted px-2 py-1 text-xs font-medium text-primary-foreground">
+            <span className="rounded-md border bg-gray-400 px-2 py-1 text-xs font-medium text-primary-foreground">
               Admin
             </span>
           </div>

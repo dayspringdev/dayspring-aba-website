@@ -1,7 +1,7 @@
 // src/components/Contact.tsx
 "use client";
 
-import { useState } from "react"; // 2. IMPORT useState
+import { useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,11 +16,35 @@ import {
   CheckCircle,
 } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
-import { Label } from "./ui/label"; // 3. IMPORT Label for the form
+import { Label } from "./ui/label";
+import type { HomePageData } from "@/types/homepage";
 
-/**
- * A confirmation message component shown after successful form submission.
- */
+// Icon map for the contact items
+const contactIcons = {
+  Mail: { Component: Mail, color: "text-primary", bgColor: "bg-primary-light" },
+  Phone: {
+    Component: Phone,
+    color: "text-hope-blue",
+    bgColor: "bg-hope-blue/10",
+  },
+  Clock: {
+    Component: Clock,
+    color: "text-faith-gold",
+    bgColor: "bg-faith-gold/10",
+  },
+  MapPin: {
+    Component: MapPin,
+    color: "text-love-rose",
+    bgColor: "bg-love-rose/10",
+  },
+};
+
+// Define the component's props
+interface ContactProps {
+  data: HomePageData["contact"];
+}
+
+// Confirmation message component (unchanged)
 const ConfirmationMessage = ({ onReset }: { onReset: () => void }) => (
   <div className="flex h-full min-h-[500px] flex-col items-center justify-center space-y-6 rounded-xl p-8 text-center">
     <CheckCircle className="h-16 w-16 text-primary" />
@@ -39,17 +63,14 @@ const ConfirmationMessage = ({ onReset }: { onReset: () => void }) => (
   </div>
 );
 
-const Contact = () => {
-  // 4. ADD state management for form submission
+const Contact = ({ data }: ContactProps) => {
   const [isSubmitted, setIsSubmitted] = useState(false);
 
   const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    // Simulate a network request delay
-    setTimeout(() => {
-      setIsSubmitted(true);
-    }, 1000);
+    setTimeout(() => setIsSubmitted(true), 1000);
   };
+
   return (
     <AnimatedSection
       id="contact"
@@ -58,12 +79,10 @@ const Contact = () => {
       <div className="container mx-auto px-4">
         <div className="text-center mb-16">
           <h2 className="text-3xl md:text-4xl font-bold text-foreground mb-4">
-            Get In Touch
+            {data.title}
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-            Ready to take the next step? We&apos;d love to hear from you and
-            learn how we can support your family&apos;s journey. Reach out for
-            your free consultation today.
+            {data.subtitle}
           </p>
         </div>
 
@@ -74,80 +93,35 @@ const Contact = () => {
               <Card className="bg-card/80 backdrop-blur-sm border border-border/50 shadow-gentle">
                 <CardContent className="p-8">
                   <h3 className="text-2xl font-bold text-foreground mb-6">
-                    Let&apos;s Connect
+                    {data.connectCardTitle}
                   </h3>
-
                   <div className="space-y-6">
-                    <div className="flex items-start space-x-4">
-                      <div className="w-12 h-12 bg-primary-light rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Mail className="text-primary" size={20} />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-foreground mb-1">
-                          Email Us
-                        </h4>
-                        <p className="text-muted-foreground">
-                          dayspringbehavioural@gmail.com
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          We typically respond within 24 hours
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start space-x-4">
-                      <div className="w-12 h-12 bg-hope-blue/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Phone className="text-hope-blue" size={20} />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-foreground mb-1">
-                          Free Consultation
-                        </h4>
-                        <p className="text-muted-foreground">
-                          Schedule a call to discuss your needs
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          No obligation, just conversation
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start space-x-4">
-                      <div className="w-12 h-12 bg-faith-gold/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <Clock className="text-faith-gold" size={20} />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-foreground mb-1">
-                          Response Time
-                        </h4>
-                        <p className="text-muted-foreground">
-                          Monday - Friday: Same day
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Weekends: Within 48 hours
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-start space-x-4">
-                      <div className="w-12 h-12 bg-love-rose/10 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <MapPin className="text-love-rose" size={20} />
-                      </div>
-                      <div>
-                        <h4 className="font-semibold text-foreground mb-1">
-                          Service Areas
-                        </h4>
-                        <p className="text-muted-foreground">
-                          Home, school, and community-based
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Virtual sessions available
-                        </p>
-                      </div>
-                    </div>
+                    {data.contactItems.map((item, index) => {
+                      const Icon =
+                        contactIcons[item.icon as keyof typeof contactIcons];
+                      if (!Icon) return null;
+                      return (
+                        <div key={index} className="flex items-start space-x-4">
+                          <div
+                            className={`w-12 h-12 ${Icon.bgColor} rounded-xl flex items-center justify-center flex-shrink-0`}
+                          >
+                            <Icon.Component className={Icon.color} size={20} />
+                          </div>
+                          <div>
+                            <h4 className="font-semibold text-foreground mb-1">
+                              {item.title}
+                            </h4>
+                            <p className="text-muted-foreground">
+                              {item.description}
+                            </p>
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {item.subtext}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
-
-                  {/* Social Media Coming Soon */}
                   <div className="mt-8 pt-6 border-t border-border/50">
                     <h4 className="font-semibold text-foreground mb-3">
                       Follow Our Journey
@@ -160,16 +134,12 @@ const Contact = () => {
                         <p className="text-sm text-muted-foreground">
                           Instagram coming soon!
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          Updates, tips, and success stories
-                        </p>
                       </div>
                     </div>
                   </div>
                 </CardContent>
               </Card>
             </div>
-
             {/* Contact Form */}
             {/* 5. ADD Conditional Rendering for Form/Confirmation */}
             <Card className="bg-card/80 backdrop-blur-sm border border-border/50 shadow-gentle">

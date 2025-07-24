@@ -1,12 +1,14 @@
+// src/components/admin/ContentEditor.tsx
+
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, ChangeEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { HomePageData } from "@/types/homepage";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import type { HomePageData } from "@/types/homepage";
 import {
   Card,
   CardContent,
@@ -21,45 +23,42 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { toast } from "sonner";
 import { PlusCircle, Trash2 } from "lucide-react";
-import Image from "next/image"; // Add Image import
-import { Skeleton } from "../ui/skeleton"; // Add Skeleton import
-import { Database } from "@/types/supabase";
+import Image from "next/image";
+import { Skeleton } from "../ui/skeleton";
+import { toast } from "sonner";
+import { Json } from "@/types/supabase";
 
-// Get the type for the icon keys from our main HomePageData type
-type ServiceIcon = HomePageData["services"]["settings"][number]["icon"];
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+const coreValueIcons = ["Cross", "FlaskConical", "Shield", "Zap", "Users"];
+const serviceIcons = ["User", "Users"];
+const settingIcons = ["Home", "Video", "School", "MapPin"];
+const howItWorksIcons = ["Phone", "FileText", "Target", "Play", "TrendingUp"];
+const contactIcons = ["Mail", "Phone", "Clock", "MapPin"];
 
-// Define our list of selectable icons, ensuring they match the ServiceIcon type
-const iconOptions: ServiceIcon[] = ["home", "tv", "school", "users"];
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type SectionObject = { [key: string]: any };
 
 export function ContentEditor() {
   const supabase = createClient();
-  const [content, setContent] = useState<Omit<HomePageData, "profile"> | null>(
-    null
-  );
-
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [uploading, setUploading] = useState(false);
-
+  const [content, setContent] = useState<HomePageData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
 
   const fetchContent = useCallback(async () => {
     setLoading(true);
-    // Fetch both content and profile data in parallel
-    const [contentRes, profileRes] = await Promise.all([
-      supabase.from("homepage_content").select("content").eq("id", 1).single(),
-      supabase.from("profiles").select("*").eq("id", 1).single(),
-    ]);
+    const { data, error } = await supabase
+      .from("homepage_content")
+      .select("content")
+      .eq("id", 1)
+      .single();
 
-    if (contentRes.error) toast.error("Failed to load page content.");
-    else setContent(contentRes.data.content as Omit<HomePageData, "profile">);
-
-    if (profileRes.error) toast.error("Failed to load profile data.");
-    else setProfile(profileRes.data);
-
+    if (error || !data) {
+      toast.error("Failed to load page content.");
+      console.error(error);
+    } else {
+      setContent(data.content as unknown as HomePageData);
+    }
     setLoading(false);
   }, [supabase]);
 
@@ -68,46 +67,31 @@ export function ContentEditor() {
   }, [fetchContent]);
 
   const handleSave = async () => {
+    if (!content) return;
     setSaving(true);
-    // Save both content and profile data in parallel
-    const [contentPromise, profilePromise] = await Promise.all([
-      supabase
-        .from("homepage_content")
-        .update({ content: content })
-        .eq("id", 1),
-      supabase
-        .from("profiles")
-        .update({
-          full_name: profile?.full_name,
-          role_title: profile?.role_title,
-        })
-        .eq("id", 1),
-    ]);
+    const { error } = await supabase
+      .from("homepage_content")
+      .update({ content: content as unknown as Json })
+      .eq("id", 1);
 
-    if (contentPromise.error || profilePromise.error) {
-      toast.error("Failed to save all changes.");
+    if (error) {
+      toast.error("Save failed!", { description: error.message });
     } else {
-      toast.success("Homepage content and profile updated!");
+      toast.success("Homepage content updated successfully!");
     }
     setSaving(false);
   };
-  const handleProfileChange = (
-    key: "full_name" | "role_title",
-    value: string
-  ) => {
-    setProfile((prev) => (prev ? { ...prev, [key]: value } : null));
-  };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
+  const handleImageUpload = async (e: ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || e.target.files.length === 0 || !content) return;
     setUploading(true);
     const file = e.target.files[0];
     const fileExt = file.name.split(".").pop();
-    const filePath = `public-avatar.${fileExt}`;
+    const filePath = `about-director-${Date.now()}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
-      .from("profile-images")
-      .upload(filePath, file, { upsert: true });
+      .from("public-assets")
+      .upload(filePath, file);
 
     if (uploadError) {
       toast.error("Upload failed", { description: uploadError.message });
@@ -117,173 +101,278 @@ export function ContentEditor() {
 
     const {
       data: { publicUrl },
-    } = supabase.storage.from("profile-images").getPublicUrl(filePath);
+    } = supabase.storage.from("public-assets").getPublicUrl(filePath);
 
-    const { error: dbError } = await supabase
-      .from("profiles")
-      .update({ avatar_url: publicUrl })
-      .eq("id", 1);
-
-    if (dbError) {
-      toast.error("Failed to save avatar", { description: dbError.message });
-    } else {
-      // Also update local state to show the new image immediately
-      setProfile((prev) => (prev ? { ...prev, avatar_url: publicUrl } : null));
-      toast.success("Avatar updated!");
-    }
+    handleInputChange("aboutUs", "imageUrl", publicUrl);
     setUploading(false);
+    toast.success("Image uploaded! Remember to save all changes.");
   };
 
-  // --- THIS IS THE FIX for the 'any' type error ---
-  // We use generics to make this function strongly typed.
-  const handleNestedChange = <T extends keyof Omit<HomePageData, "profile">>(
-    section: T,
-    key: keyof Omit<HomePageData, "profile">[T],
-    value: Omit<HomePageData, "profile">[T][keyof Omit<
-      HomePageData,
-      "profile"
-    >[T]]
+  const handleInputChange = (
+    section: keyof HomePageData,
+    key: string,
+    value: string | number | boolean,
+    subkey?: string
   ) => {
     setContent((prev) => {
       if (!prev) return null;
-      return {
-        ...prev,
-        [section]: {
-          ...prev[section],
-          [key]: value,
-        },
-      };
+      const newContent = { ...prev };
+      if (subkey) {
+        (newContent[section] as SectionObject)[key][subkey] = value;
+      } else {
+        (newContent[section] as SectionObject)[key] = value;
+      }
+      return newContent;
     });
   };
 
-  if (loading || !content || !profile) {
-    // A more comprehensive skeleton
-    return <div>Loading editor...</div>;
+  const handleArrayObjectChange = (
+    section: keyof HomePageData,
+    listKey: string,
+    index: number,
+    field: string,
+    value: string
+  ) => {
+    setContent((prev) => {
+      if (!prev) return null;
+      const newContent = { ...prev };
+      const list = (newContent[section] as SectionObject)[
+        listKey
+      ] as SectionObject[];
+      list[index][field] = value;
+      return newContent;
+    });
+  };
+
+  const handleAddItem = (
+    section: keyof HomePageData,
+    listKey: string,
+    newItem: object
+  ) => {
+    setContent((prev) => {
+      if (!prev) return null;
+      const newContent = { ...prev };
+      const list = (newContent[section] as SectionObject)[listKey] as object[];
+      list.push(newItem);
+      return newContent;
+    });
+  };
+
+  const handleRemoveItem = (
+    section: keyof HomePageData,
+    listKey: string,
+    index: number
+  ) => {
+    setContent((prev) => {
+      if (!prev) return null;
+      const newContent = { ...prev };
+      const list = (newContent[section] as SectionObject)[listKey] as unknown[];
+      list.splice(index, 1);
+      return newContent;
+    });
+  };
+
+  const handleStringArrayChange = (
+    section: keyof HomePageData,
+    listKey: string,
+    index: number,
+    value: string
+  ) => {
+    setContent((prev) => {
+      if (!prev) return null;
+      const newContent = { ...prev };
+      const list = (newContent[section] as SectionObject)[listKey] as string[];
+      list[index] = value;
+      return newContent;
+    });
+  };
+
+  const handleAddStringItem = (
+    section: keyof HomePageData,
+    listKey: string
+  ) => {
+    setContent((prev) => {
+      if (!prev) return null;
+      const newContent = { ...prev };
+      const list = (newContent[section] as SectionObject)[listKey] as string[];
+      list.push("");
+      return newContent;
+    });
+  };
+
+  const handleRemoveStringItem = (
+    section: keyof HomePageData,
+    listKey: string,
+    index: number
+  ) => {
+    setContent((prev) => {
+      if (!prev) return null;
+      const newContent = { ...prev };
+      const list = (newContent[section] as SectionObject)[listKey] as string[];
+      list.splice(index, 1);
+      return newContent;
+    });
+  };
+
+  const handleFeaturesChange = (
+    section: keyof HomePageData,
+    listKey: string,
+    index: number,
+    value: string
+  ) => {
+    setContent((prev) => {
+      if (!prev) return null;
+      const newContent = { ...prev };
+      const list = (newContent[section] as SectionObject)[listKey] as {
+        features: string[];
+      }[];
+      list[index].features = value.split("\n");
+      return newContent;
+    });
+  };
+
+  if (loading || !content) {
+    return (
+      <div className="space-y-6">
+        <Skeleton className="w-full h-96" />
+        <Skeleton className="w-full h-96" />
+        <Skeleton className="w-full h-96" />
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6">
-      <Card>
+      {/* ==================================================================== */}
+      {/* Hero Section Editor                                                  */}
+      {/* ==================================================================== */}
+      <Card className="shadow-none border-muted/20">
         <CardHeader>
           <CardTitle>Hero Section</CardTitle>
+          <CardDescription>
+            Edit the content for the main banner at the top of the homepage.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="heroTitle">Title</Label>
-            <Input
-              id="heroTitle"
-              value={content.hero.title}
-              onChange={(e) =>
-                handleNestedChange("hero", "title", e.target.value)
-              }
-            />
+        <CardContent className="space-y-6">
+          <div className="space-y-4 rounded-md border p-4">
+            <Label className="text-base font-semibold">Main Headline</Label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="heroHeadline1" className="text-xs">
+                  Part 1 (Standard Text)
+                </Label>
+                <Input
+                  id="heroHeadline1"
+                  value={content.hero.headline.part1}
+                  onChange={(e) =>
+                    handleInputChange(
+                      "hero",
+                      "headline",
+                      e.target.value,
+                      "part1"
+                    )
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="heroHeadline2" className="text-xs">
+                  Part 2 (Primary Color)
+                </Label>
+                <Input
+                  id="heroHeadline2"
+                  value={content.hero.headline.part2}
+                  onChange={(e) =>
+                    handleInputChange(
+                      "hero",
+                      "headline",
+                      e.target.value,
+                      "part2"
+                    )
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="heroHeadline3" className="text-xs">
+                  Part 3 (Blue Color)
+                </Label>
+                <Input
+                  id="heroHeadline3"
+                  value={content.hero.headline.part3}
+                  onChange={(e) =>
+                    handleInputChange(
+                      "hero",
+                      "headline",
+                      e.target.value,
+                      "part3"
+                    )
+                  }
+                />
+              </div>
+            </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="heroSubtitle">Subtitle</Label>
+            <Label htmlFor="heroSubtitle">Subtitle Paragraph</Label>
             <Textarea
               id="heroSubtitle"
               value={content.hero.subtitle}
               onChange={(e) =>
-                handleNestedChange("hero", "subtitle", e.target.value)
+                handleInputChange("hero", "subtitle", e.target.value)
               }
             />
           </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>About Section</CardTitle>
-          <CardDescription>
-            Manage the headshot, name, role, and bio paragraphs.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* --- Profile Fields --- */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-1 space-y-2">
-              <Label>Headshot</Label>
-              <div className="flex flex-col items-center gap-4">
-                {profile?.avatar_url ? (
-                  <Image
-                    src={profile.avatar_url}
-                    alt="Current headshot"
-                    width={160}
-                    height={160}
-                    className="h-40 w-40 rounded-full object-cover border"
-                  />
-                ) : (
-                  <div className="flex h-40 w-40 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
-                    No Image
-                  </div>
-                )}
-                <Input
-                  id="avatar"
-                  type="file"
-                  accept="image/*"
-                  onChange={handleFileUpload} // We'll need to define this function
-                  disabled={uploading} // and this state
-                  className="text-xs"
-                />
-              </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="heroBtn1">Primary Button Text</Label>
+              <Input
+                id="heroBtn1"
+                value={content.hero.buttons.primary}
+                onChange={(e) =>
+                  handleInputChange(
+                    "hero",
+                    "buttons",
+                    e.target.value,
+                    "primary"
+                  )
+                }
+              />
             </div>
-            <div className="md:col-span-2 space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="profileFullName">Full Name</Label>
-                <Input
-                  id="profileFullName"
-                  value={profile?.full_name || ""}
-                  onChange={(e) =>
-                    handleProfileChange("full_name", e.target.value)
-                  } // New handler
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="profileRoleTitle">Role / Title</Label>
-                <Input
-                  id="profileRoleTitle"
-                  value={profile?.role_title || ""}
-                  onChange={(e) =>
-                    handleProfileChange("role_title", e.target.value)
-                  } // New handler
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="heroBtn2">Secondary Button Text</Label>
+              <Input
+                id="heroBtn2"
+                value={content.hero.buttons.secondary}
+                onChange={(e) =>
+                  handleInputChange(
+                    "hero",
+                    "buttons",
+                    e.target.value,
+                    "secondary"
+                  )
+                }
+              />
             </div>
           </div>
-
-          {/* --- About Section Fields --- */}
-          <div className="space-y-2">
-            <Label htmlFor="aboutTitle">Section Title</Label>
-            <Input
-              id="aboutTitle"
-              value={content.about.title}
-              onChange={(e) =>
-                handleNestedChange("about", "title", e.target.value)
-              }
-            />
-          </div>
-          <div className="space-y-2">
-            <Label>Bio Paragraphs</Label>
-            {content.about.body.map((paragraph, index) => (
+          <div className="space-y-4 rounded-md border p-4">
+            <Label className="text-base font-semibold">Trust Indicators</Label>
+            {content.hero.trustIndicators.map((indicator, index) => (
               <div key={index} className="flex items-center gap-2">
-                <Textarea
-                  placeholder={`Paragraph ${index + 1}`}
-                  value={paragraph}
-                  onChange={(e) => {
-                    const newBody = [...content.about.body];
-                    newBody[index] = e.target.value;
-                    handleNestedChange("about", "body", newBody);
-                  }}
+                <Input
+                  value={indicator}
+                  onChange={(e) =>
+                    handleStringArrayChange(
+                      "hero",
+                      "trustIndicators",
+                      index,
+                      e.target.value
+                    )
+                  }
                 />
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={() => {
-                    const newBody = content.about.body.filter(
-                      (_, i) => i !== index
-                    );
-                    handleNestedChange("about", "body", newBody);
-                  }}
+                  onClick={() =>
+                    handleRemoveStringItem("hero", "trustIndicators", index)
+                  }
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />
                 </Button>
@@ -292,137 +381,238 @@ export function ContentEditor() {
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                const newBody = [...content.about.body, ""];
-                handleNestedChange("about", "body", newBody);
-              }}
+              onClick={() => handleAddStringItem("hero", "trustIndicators")}
             >
               <PlusCircle className="mr-2 h-4 w-4" />
-              Add Paragraph
+              Add Indicator
             </Button>
           </div>
         </CardContent>
       </Card>
 
-      <Card>
+      {/* ==================================================================== */}
+      {/* Mission & Vision Section Editor                                      */}
+      {/* ==================================================================== */}
+      <Card className="shadow-none border-muted/20">
         <CardHeader>
-          <CardTitle>Guiding Principles Section</CardTitle>
+          <CardTitle>Purpose & Vision Section</CardTitle>
+          <CardDescription>
+            Edit the mission and vision statements.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-2">
+            <Label htmlFor="mvTitle">Section Title</Label>
+            <Input
+              id="mvTitle"
+              value={content.missionVision.title}
+              onChange={(e) =>
+                handleInputChange("missionVision", "title", e.target.value)
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="mvSubtitle">Section Subtitle</Label>
+            <Textarea
+              id="mvSubtitle"
+              value={content.missionVision.subtitle}
+              onChange={(e) =>
+                handleInputChange("missionVision", "subtitle", e.target.value)
+              }
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4 rounded-md border p-4">
+              <div className="space-y-2">
+                <Label htmlFor="missionTitle">Mission Card Title</Label>
+                <Input
+                  id="missionTitle"
+                  value={content.missionVision.mission.title}
+                  onChange={(e) =>
+                    handleInputChange(
+                      "missionVision",
+                      "mission",
+                      e.target.value,
+                      "title"
+                    )
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="missionText">Mission Card Text</Label>
+                <Textarea
+                  id="missionText"
+                  rows={5}
+                  value={content.missionVision.mission.text}
+                  onChange={(e) =>
+                    handleInputChange(
+                      "missionVision",
+                      "mission",
+                      e.target.value,
+                      "text"
+                    )
+                  }
+                />
+              </div>
+            </div>
+            <div className="space-y-4 rounded-md border p-4">
+              <div className="space-y-2">
+                <Label htmlFor="visionTitle">Vision Card Title</Label>
+                <Input
+                  id="visionTitle"
+                  value={content.missionVision.vision.title}
+                  onChange={(e) =>
+                    handleInputChange(
+                      "missionVision",
+                      "vision",
+                      e.target.value,
+                      "title"
+                    )
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="visionText">Vision Card Text</Label>
+                <Textarea
+                  id="visionText"
+                  rows={5}
+                  value={content.missionVision.vision.text}
+                  onChange={(e) =>
+                    handleInputChange(
+                      "missionVision",
+                      "vision",
+                      e.target.value,
+                      "text"
+                    )
+                  }
+                />
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ==================================================================== */}
+      {/* Core Values Section Editor                                           */}
+      {/* ==================================================================== */}
+      <Card className="shadow-none border-muted/20">
+        <CardHeader>
+          <CardTitle>Core Values Section</CardTitle>
           <CardDescription>
             Manage the title, subtitle, and list of core values.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {/* --- FIX IS HERE: Added Labels --- */}
+        <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="guidingPrinciplesTitle">Section Title</Label>
+            <Label htmlFor="cvTitle">Section Title</Label>
             <Input
-              id="guidingPrinciplesTitle"
-              value={content.guidingPrinciples.title}
+              id="cvTitle"
+              value={content.coreValues.title}
               onChange={(e) =>
-                handleNestedChange("guidingPrinciples", "title", e.target.value)
+                handleInputChange("coreValues", "title", e.target.value)
               }
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="guidingPrinciplesSubtitle">Section Subtitle</Label>
+            <Label htmlFor="cvSubtitle">Section Subtitle</Label>
             <Textarea
-              id="guidingPrinciplesSubtitle"
-              value={content.guidingPrinciples.subtitle}
+              id="cvSubtitle"
+              value={content.coreValues.subtitle}
               onChange={(e) =>
-                handleNestedChange(
-                  "guidingPrinciples",
-                  "subtitle",
-                  e.target.value
-                )
+                handleInputChange("coreValues", "subtitle", e.target.value)
               }
             />
           </div>
-
-          {/* ... inside the Guiding Principles Card ... */}
-
           <div className="space-y-4 rounded-md border p-4">
-            <Label className="text-base font-semibold">Core Values List</Label>
-            <div className="space-y-4">
-              {content.guidingPrinciples.values.map((value, index) => (
-                <div key={index} className="space-y-3 rounded-lg border p-3">
-                  {/* --- FIX IS HERE: Added explicit labels for Title and Description --- */}
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor={`value-title-${index}`}
-                      className="text-xs font-medium"
-                    >
-                      Title
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id={`value-title-${index}`}
-                        placeholder="Value Title (e.g., Faith-Centered)"
-                        value={value.title}
-                        onChange={(e) => {
-                          const newList = [...content.guidingPrinciples.values];
-                          newList[index].title = e.target.value;
-                          handleNestedChange(
-                            "guidingPrinciples",
-                            "values",
-                            newList
-                          );
-                        }}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          const newList =
-                            content.guidingPrinciples.values.filter(
-                              (_, i) => i !== index
-                            );
-                          handleNestedChange(
-                            "guidingPrinciples",
-                            "values",
-                            newList
-                          );
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor={`value-desc-${index}`}
-                      className="text-xs font-medium"
-                    >
-                      Description
-                    </Label>
-                    <Textarea
-                      id={`value-desc-${index}`}
-                      placeholder="Value description..."
-                      value={value.description}
-                      onChange={(e) => {
-                        const newList = [...content.guidingPrinciples.values];
-                        newList[index].description = e.target.value;
-                        handleNestedChange(
-                          "guidingPrinciples",
+            <Label className="text-base font-semibold">Values List</Label>
+            {content.coreValues.values.map((value, index) => (
+              <div key={index} className="space-y-3 rounded-lg border p-3">
+                <div className="flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      handleRemoveItem("coreValues", "values", index)
+                    }
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Icon</Label>
+                    <Select
+                      value={value.icon}
+                      onValueChange={(v) =>
+                        handleArrayObjectChange(
+                          "coreValues",
                           "values",
-                          newList
-                        );
-                      }}
+                          index,
+                          "icon",
+                          v
+                        )
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {coreValueIcons.map((i) => (
+                          <SelectItem key={i} value={i}>
+                            {i}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`valueTitle${index}`} className="text-xs">
+                      Value Title
+                    </Label>
+                    <Input
+                      id={`valueTitle${index}`}
+                      value={value.title}
+                      onChange={(e) =>
+                        handleArrayObjectChange(
+                          "coreValues",
+                          "values",
+                          index,
+                          "title",
+                          e.target.value
+                        )
+                      }
                     />
                   </div>
                 </div>
-              ))}
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`valueDesc${index}`}>Description</Label>
+                  <Textarea
+                    id={`valueDesc${index}`}
+                    value={value.description}
+                    onChange={(e) =>
+                      handleArrayObjectChange(
+                        "coreValues",
+                        "values",
+                        index,
+                        "description",
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            ))}
             <Button
               variant="outline"
               size="sm"
               className="mt-4"
-              onClick={() => {
-                const newList = [
-                  ...content.guidingPrinciples.values,
-                  { title: "", description: "" },
-                ];
-                handleNestedChange("guidingPrinciples", "values", newList);
-              }}
+              onClick={() =>
+                handleAddItem("coreValues", "values", {
+                  icon: "Cross",
+                  title: "",
+                  description: "",
+                })
+              }
             >
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Value
@@ -431,12 +621,142 @@ export function ContentEditor() {
         </CardContent>
       </Card>
 
-      <Card>
+      {/* ==================================================================== */}
+      {/* About Us Section Editor                                              */}
+      {/* ==================================================================== */}
+      <Card className="shadow-none border-muted/20">
+        <CardHeader>
+          <CardTitle>About Section (&quot;Meet The Director&quot;)</CardTitle>
+          <CardDescription>
+            Manage the image, title, subtitle, bio, and credentials.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="space-y-4 rounded-md border p-4">
+            <Label className="text-base font-semibold">Director Portrait</Label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+              <div className="md:col-span-1">
+                <Label className="text-xs">Image Preview</Label>
+                <div className="mt-2 aspect-square w-32 relative bg-muted rounded-md flex items-center justify-center">
+                  {content.aboutUs.imageUrl ? (
+                    <Image
+                      src={content.aboutUs.imageUrl}
+                      alt="preview"
+                      fill
+                      className="object-cover rounded-md"
+                    />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      No Image
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="md:col-span-2 space-y-2">
+                <Label htmlFor="aboutImage">Upload New Image</Label>
+                <Input
+                  id="aboutImage"
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageUpload}
+                  disabled={uploading}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Upload a JPG, PNG, or WEBP file.
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="aboutTitle">Section Title</Label>
+            <Input
+              id="aboutTitle"
+              value={content.aboutUs.title}
+              onChange={(e) =>
+                handleInputChange("aboutUs", "title", e.target.value)
+              }
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="aboutSubtitle">Section Subtitle</Label>
+            <Textarea
+              id="aboutSubtitle"
+              value={content.aboutUs.subtitle}
+              onChange={(e) =>
+                handleInputChange("aboutUs", "subtitle", e.target.value)
+              }
+            />
+          </div>
+          <div className="space-y-4 rounded-md border p-4">
+            <Label className="text-base font-semibold">Bio Paragraphs</Label>
+            {content.aboutUs.bio.map((paragraph, index) => (
+              <div key={index} className="flex items-center gap-2">
+                <Textarea
+                  value={paragraph}
+                  onChange={(e) =>
+                    handleStringArrayChange(
+                      "aboutUs",
+                      "bio",
+                      index,
+                      e.target.value
+                    )
+                  }
+                />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() =>
+                    handleRemoveStringItem("aboutUs", "bio", index)
+                  }
+                >
+                  <Trash2 className="h-4 w-4 text-destructive" />
+                </Button>
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => handleAddStringItem("aboutUs", "bio")}
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add Paragraph
+            </Button>
+          </div>
+          <div className="space-y-4 rounded-md border p-4">
+            <Label className="text-base font-semibold">Credentials List</Label>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {content.aboutUs.credentials.map((cred, index) => (
+                <div key={index} className="space-y-2">
+                  <Label htmlFor={`cred${index}`} className="text-xs">
+                    Credential {index + 1}
+                  </Label>
+                  <Input
+                    id={`cred${index}`}
+                    value={cred}
+                    onChange={(e) =>
+                      handleStringArrayChange(
+                        "aboutUs",
+                        "credentials",
+                        index,
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ==================================================================== */}
+      {/* Services Section Editor                                              */}
+      {/* ==================================================================== */}
+      <Card className="shadow-none border-muted/20">
         <CardHeader>
           <CardTitle>Services Section</CardTitle>
           <CardDescription>
-            Manage the main services and the flexible setting options displayed
-            on the homepage.
+            Manage the main services and service settings.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -446,7 +766,7 @@ export function ContentEditor() {
               id="servicesTitle"
               value={content.services.title}
               onChange={(e) =>
-                handleNestedChange("services", "title", e.target.value)
+                handleInputChange("services", "title", e.target.value)
               }
             />
           </div>
@@ -456,192 +776,237 @@ export function ContentEditor() {
               id="servicesSubtitle"
               value={content.services.subtitle}
               onChange={(e) =>
-                handleNestedChange("services", "subtitle", e.target.value)
+                handleInputChange("services", "subtitle", e.target.value)
               }
             />
           </div>
-
-          {/* Part 1: Main Service List */}
           <div className="space-y-4 rounded-md border p-4">
             <Label className="text-base font-semibold">
-              Main Services List
+              Therapy Services List
             </Label>
-            <div className="space-y-4">
-              {content.services.list.map((service, index) => (
-                <div key={index} className="space-y-3 rounded-lg border p-3">
-                  {/* --- FIX IS HERE: Added explicit labels for Title and Description --- */}
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor={`service-title-${index}`}
-                      className="text-xs font-medium"
-                    >
-                      Title
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      <Input
-                        id={`service-title-${index}`}
-                        placeholder="Service Title (e.g., 1:1 ABA Therapy)"
-                        value={service.title}
-                        onChange={(e) => {
-                          const newList = [...content.services.list];
-                          newList[index].title = e.target.value;
-                          handleNestedChange("services", "list", newList);
-                        }}
-                      />
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => {
-                          const newList = content.services.list.filter(
-                            (_, i) => i !== index
-                          );
-                          handleNestedChange("services", "list", newList);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4 text-destructive" />
-                      </Button>
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor={`service-desc-${index}`}
-                      className="text-xs font-medium"
-                    >
-                      Description
-                    </Label>
-                    <Textarea
-                      id={`service-desc-${index}`}
-                      placeholder="Service description..."
-                      value={service.description}
-                      onChange={(e) => {
-                        const newList = [...content.services.list];
-                        newList[index].description = e.target.value;
-                        handleNestedChange("services", "list", newList);
-                      }}
-                    />
-                  </div>
+            {content.services.therapyServices.map((service, index) => (
+              <div key={index} className="space-y-3 rounded-lg border p-3">
+                <div className="flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      handleRemoveItem("services", "therapyServices", index)
+                    }
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </div>
-              ))}
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="mt-4" // Add some margin top
-              onClick={() => {
-                const newList = [
-                  ...content.services.list,
-                  { title: "", description: "" },
-                ];
-                handleNestedChange("services", "list", newList);
-              }}
-            >
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Add Service
-            </Button>
-          </div>
-
-          {/* Part 2: Flexible Service Settings */}
-          <div className="space-y-4 rounded-md border p-4">
-            <div className="space-y-2">
-              <Label
-                htmlFor="settingsTitle"
-                className="text-base font-semibold"
-              >
-                Settings Section Title
-              </Label>
-              <Input
-                id="settingsTitle"
-                value={content.services.settingsTitle}
-                onChange={(e) =>
-                  handleNestedChange(
-                    "services",
-                    "settingsTitle",
-                    e.target.value
-                  )
-                }
-              />
-            </div>
-
-            <Label className="text-sm font-medium">Individual Settings</Label>
-            <div className="space-y-2">
-              {content.services.settings.map((setting, index) => (
-                <div
-                  key={index}
-                  className="grid grid-cols-[1fr_2fr_auto] items-center gap-2"
-                >
-                  <div>
-                    <Label className="text-xs text-muted-foreground">
-                      Icon
-                    </Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Icon</Label>
                     <Select
-                      value={setting.icon}
-                      onValueChange={(value: ServiceIcon) => {
-                        const newSettings = [...content.services.settings];
-                        newSettings[index].icon = value;
-                        handleNestedChange("services", "settings", newSettings);
-                      }}
+                      value={service.icon}
+                      onValueChange={(v) =>
+                        handleArrayObjectChange(
+                          "services",
+                          "therapyServices",
+                          index,
+                          "icon",
+                          v
+                        )
+                      }
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder="Select icon" />
+                        <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {iconOptions.map((opt) => (
-                          <SelectItem key={opt} value={opt}>
-                            {opt.charAt(0).toUpperCase() + opt.slice(1)}
+                        {serviceIcons.map((i) => (
+                          <SelectItem key={i} value={i}>
+                            {i}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
-                  <div>
-                    <Label className="text-xs text-muted-foreground">
-                      Text
+                  <div className="space-y-2">
+                    <Label htmlFor={`serviceTitle${index}`} className="text-xs">
+                      Service Title
                     </Label>
                     <Input
-                      placeholder="Setting Text (e.g., Home-Based)"
-                      value={setting.text}
-                      onChange={(e) => {
-                        const newSettings = [...content.services.settings];
-                        newSettings[index].text = e.target.value;
-                        handleNestedChange("services", "settings", newSettings);
-                      }}
+                      id={`serviceTitle${index}`}
+                      value={service.title}
+                      onChange={(e) =>
+                        handleArrayObjectChange(
+                          "services",
+                          "therapyServices",
+                          index,
+                          "title",
+                          e.target.value
+                        )
+                      }
                     />
                   </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`serviceDesc${index}`}>Description</Label>
+                  <Textarea
+                    id={`serviceDesc${index}`}
+                    value={service.description}
+                    onChange={(e) =>
+                      handleArrayObjectChange(
+                        "services",
+                        "therapyServices",
+                        index,
+                        "description",
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`serviceFeatures${index}`}>
+                    Features (one per line)
+                  </Label>
+                  <Textarea
+                    id={`serviceFeatures${index}`}
+                    value={service.features.join("\n")}
+                    onChange={(e) =>
+                      handleFeaturesChange(
+                        "services",
+                        "therapyServices",
+                        index,
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                handleAddItem("services", "therapyServices", {
+                  icon: "User",
+                  title: "",
+                  description: "",
+                  features: [],
+                })
+              }
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add Service
+            </Button>
+          </div>
+          <div className="space-y-4 rounded-md border p-4">
+            <div className="space-y-2">
+              <Label htmlFor="settingsTitle">Settings Title</Label>
+              <Input
+                id="settingsTitle"
+                value={content.services.settingsTitle}
+                onChange={(e) =>
+                  handleInputChange("services", "settingsTitle", e.target.value)
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="settingsSubtitle">Settings Subtitle</Label>
+              <Textarea
+                id="settingsSubtitle"
+                value={content.services.settingsSubtitle}
+                onChange={(e) =>
+                  handleInputChange(
+                    "services",
+                    "settingsSubtitle",
+                    e.target.value
+                  )
+                }
+              />
+            </div>
+            <Label className="text-base font-semibold">Settings List</Label>
+            {content.services.settings.map((setting, index) => (
+              <div key={index} className="space-y-3 rounded-lg border p-3">
+                <div className="flex justify-end">
                   <Button
                     variant="ghost"
                     size="icon"
-                    className="self-end" // Align button to the bottom
-                    onClick={() => {
-                      const newSettings = content.services.settings.filter(
-                        (_, i) => i !== index
-                      );
-                      handleNestedChange("services", "settings", newSettings);
-                    }}
+                    onClick={() =>
+                      handleRemoveItem("services", "settings", index)
+                    }
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </div>
-              ))}
-            </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Icon</Label>
+                    <Select
+                      value={setting.icon}
+                      onValueChange={(v) =>
+                        handleArrayObjectChange(
+                          "services",
+                          "settings",
+                          index,
+                          "icon",
+                          v
+                        )
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {settingIcons.map((i) => (
+                          <SelectItem key={i} value={i}>
+                            {i}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`settingTitle${index}`} className="text-xs">
+                      Setting Title
+                    </Label>
+                    <Input
+                      id={`settingTitle${index}`}
+                      value={setting.title}
+                      onChange={(e) =>
+                        handleArrayObjectChange(
+                          "services",
+                          "settings",
+                          index,
+                          "title",
+                          e.target.value
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`settingDesc${index}`}>Description</Label>
+                  <Textarea
+                    id={`settingDesc${index}`}
+                    value={setting.description}
+                    onChange={(e) =>
+                      handleArrayObjectChange(
+                        "services",
+                        "settings",
+                        index,
+                        "description",
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            ))}
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                // --- THIS IS THE FIX ---
-                // Explicitly define the new setting with the correct type.
-                // HomePageData['services']['settings'][number] is a robust way to get the type of one item.
-                const newSetting: HomePageData["services"]["settings"][number] =
-                  {
-                    icon: "home", // This is now correctly typed as ServiceIcon
-                    text: "",
-                  };
-
-                const newSettings = [
-                  ...content.services.settings,
-                  newSetting, // Add the correctly typed object
-                ];
-                handleNestedChange("services", "settings", newSettings);
-              }}
+              onClick={() =>
+                handleAddItem("services", "settings", {
+                  icon: "Home",
+                  title: "",
+                  description: "",
+                })
+              }
             >
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Setting
@@ -650,111 +1015,126 @@ export function ContentEditor() {
         </CardContent>
       </Card>
 
-      <Card>
+      {/* ==================================================================== */}
+      {/* How It Works Section Editor                                          */}
+      {/* ==================================================================== */}
+      <Card className="shadow-none border-muted/20">
         <CardHeader>
-          <CardTitle>Intake Process Section</CardTitle>
+          <CardTitle>How It Works Section</CardTitle>
           <CardDescription>
-            Manage the &quot;Getting Started is Simple&quot; steps on the
-            homepage.
+            Manage the step-by-step intake process.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="intakeTitle">Section Title</Label>
+            <Label htmlFor="hiwTitle">Section Title</Label>
             <Input
-              id="intakeTitle"
-              value={content.intake.title}
+              id="hiwTitle"
+              value={content.howItWorks.title}
               onChange={(e) =>
-                handleNestedChange("intake", "title", e.target.value)
+                handleInputChange("howItWorks", "title", e.target.value)
               }
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="intakeSubtitle">Section Subtitle</Label>
+            <Label htmlFor="hiwSubtitle">Section Subtitle</Label>
             <Textarea
-              id="intakeSubtitle"
-              value={content.intake.subtitle}
+              id="hiwSubtitle"
+              value={content.howItWorks.subtitle}
               onChange={(e) =>
-                handleNestedChange("intake", "subtitle", e.target.value)
+                handleInputChange("howItWorks", "subtitle", e.target.value)
               }
             />
           </div>
-
           <div className="space-y-4 rounded-md border p-4">
-            <Label className="text-base font-semibold">Intake Steps List</Label>
-            <div className="space-y-4">
-              {content.intake.steps.map((step, index) => (
-                <div key={index} className="space-y-3 rounded-lg border p-3">
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm font-semibold">Step {index + 1}</p>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        const newList = content.intake.steps.filter(
-                          (_, i) => i !== index
-                        );
-                        handleNestedChange("intake", "steps", newList);
-                      }}
+            <Label className="text-base font-semibold">Steps List</Label>
+            {content.howItWorks.steps.map((step, index) => (
+              <div key={index} className="space-y-3 rounded-lg border p-3">
+                <div className="flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      handleRemoveItem("howItWorks", "steps", index)
+                    }
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Icon</Label>
+                    <Select
+                      value={step.icon}
+                      onValueChange={(v) =>
+                        handleArrayObjectChange(
+                          "howItWorks",
+                          "steps",
+                          index,
+                          "icon",
+                          v
+                        )
+                      }
                     >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {howItWorksIcons.map((i) => (
+                          <SelectItem key={i} value={i}>
+                            {i}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
                   </div>
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor={`step-title-${index}`}
-                      className="text-xs font-medium"
-                    >
-                      Title
+                  <div className="space-y-2">
+                    <Label htmlFor={`stepTitle${index}`} className="text-xs">
+                      Step Title
                     </Label>
                     <Input
-                      id={`step-title-${index}`}
-                      placeholder="Step Title (e.g., Book a Free Consultation)"
+                      id={`stepTitle${index}`}
                       value={step.title}
-                      onChange={(e) => {
-                        const newList = [...content.intake.steps];
-                        newList[index].title = e.target.value;
-                        handleNestedChange("intake", "steps", newList);
-                      }}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor={`step-desc-${index}`}
-                      className="text-xs font-medium"
-                    >
-                      Description
-                    </Label>
-                    <Textarea
-                      id={`step-desc-${index}`}
-                      placeholder="Step description..."
-                      value={step.description}
-                      onChange={(e) => {
-                        const newList = [...content.intake.steps];
-                        newList[index].description = e.target.value;
-                        handleNestedChange("intake", "steps", newList);
-                      }}
+                      onChange={(e) =>
+                        handleArrayObjectChange(
+                          "howItWorks",
+                          "steps",
+                          index,
+                          "title",
+                          e.target.value
+                        )
+                      }
                     />
                   </div>
                 </div>
-              ))}
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`stepDesc${index}`}>Description</Label>
+                  <Textarea
+                    id={`stepDesc${index}`}
+                    value={step.description}
+                    onChange={(e) =>
+                      handleArrayObjectChange(
+                        "howItWorks",
+                        "steps",
+                        index,
+                        "description",
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            ))}
             <Button
               variant="outline"
               size="sm"
-              className="mt-4"
-              onClick={() => {
-                // The 'step' number is derived from the index, so we only need title and desc
-                const newList = [
-                  ...content.intake.steps,
-                  {
-                    step: content.intake.steps.length + 1,
-                    title: "",
-                    description: "",
-                  },
-                ];
-                handleNestedChange("intake", "steps", newList);
-              }}
+              onClick={() =>
+                handleAddItem("howItWorks", "steps", {
+                  icon: "Phone",
+                  title: "",
+                  description: "",
+                })
+              }
             >
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Step
@@ -763,99 +1143,92 @@ export function ContentEditor() {
         </CardContent>
       </Card>
 
-      {/* FAQ SECTION */}
-      <Card>
+      {/* ==================================================================== */}
+      {/* FAQ Section Editor                                                   */}
+      {/* ==================================================================== */}
+      <Card className="shadow-none border-muted/20">
         <CardHeader>
           <CardTitle>FAQ Section</CardTitle>
           <CardDescription>
-            Manage the &quot;Frequently Asked Questions&quot; on the homepage.
+            Manage the frequently asked questions.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="faqTitle">Section Title</Label>
             <Input
               id="faqTitle"
               value={content.faq.title}
               onChange={(e) =>
-                handleNestedChange("faq", "title", e.target.value)
+                handleInputChange("faq", "title", e.target.value)
               }
             />
           </div>
-
+          <div className="space-y-2">
+            <Label htmlFor="faqSubtitle">Section Subtitle</Label>
+            <Textarea
+              id="faqSubtitle"
+              value={content.faq.subtitle}
+              onChange={(e) =>
+                handleInputChange("faq", "subtitle", e.target.value)
+              }
+            />
+          </div>
           <div className="space-y-4 rounded-md border p-4">
             <Label className="text-base font-semibold">Questions List</Label>
-            <div className="space-y-4">
-              {content.faq.questions.map((faqItem, index) => (
-                <div key={index} className="space-y-3 rounded-lg border p-3">
-                  {/* --- THIS IS THE FIX --- */}
-                  <div className="flex justify-between items-center">
-                    <p className="text-sm font-semibold text-muted-foreground">
-                      Question {index + 1}
-                    </p>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => {
-                        const newList = content.faq.questions.filter(
-                          (_, i) => i !== index
-                        );
-                        handleNestedChange("faq", "questions", newList);
-                      }}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
-                  </div>
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor={`faq-question-${index}`}
-                      className="text-xs font-medium"
-                    >
-                      Question
-                    </Label>
-                    <Input
-                      id={`faq-question-${index}`}
-                      placeholder="Question..."
-                      value={faqItem.question}
-                      onChange={(e) => {
-                        const newList = [...content.faq.questions];
-                        newList[index].question = e.target.value;
-                        handleNestedChange("faq", "questions", newList);
-                      }}
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label
-                      htmlFor={`faq-answer-${index}`}
-                      className="text-xs font-medium"
-                    >
-                      Answer
-                    </Label>
-                    <Textarea
-                      id={`faq-answer-${index}`}
-                      placeholder="Answer..."
-                      value={faqItem.answer}
-                      onChange={(e) => {
-                        const newList = [...content.faq.questions];
-                        newList[index].answer = e.target.value;
-                        handleNestedChange("faq", "questions", newList);
-                      }}
-                    />
-                  </div>
+            {content.faq.questions.map((faq, index) => (
+              <div key={index} className="space-y-3 rounded-lg border p-3">
+                <div className="flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => handleRemoveItem("faq", "questions", index)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </div>
-              ))}
-            </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`faqQ${index}`} className="text-xs">
+                    Question
+                  </Label>
+                  <Input
+                    id={`faqQ${index}`}
+                    value={faq.question}
+                    onChange={(e) =>
+                      handleArrayObjectChange(
+                        "faq",
+                        "questions",
+                        index,
+                        "question",
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`faqA${index}`}>Answer</Label>
+                  <Textarea
+                    id={`faqA${index}`}
+                    value={faq.answer}
+                    onChange={(e) =>
+                      handleArrayObjectChange(
+                        "faq",
+                        "questions",
+                        index,
+                        "answer",
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            ))}
             <Button
               variant="outline"
               size="sm"
-              className="mt-4"
-              onClick={() => {
-                const newList = [
-                  ...content.faq.questions,
-                  { question: "", answer: "" },
-                ];
-                handleNestedChange("faq", "questions", newList);
-              }}
+              onClick={() =>
+                handleAddItem("faq", "questions", { question: "", answer: "" })
+              }
             >
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Question
@@ -864,41 +1237,174 @@ export function ContentEditor() {
         </CardContent>
       </Card>
 
-      {/* CTA SECTION */}
-      <Card>
+      {/* ==================================================================== */}
+      {/* Contact Section ("Get In Touch") Editor                              */}
+      {/* ==================================================================== */}
+      <Card className="shadow-none border-muted/20">
         <CardHeader>
-          <CardTitle>Call to Action (CTA) Section</CardTitle>
+          <CardTitle>Get In Touch Section</CardTitle>
           <CardDescription>
-            Manage the final prompt at the bottom of the homepage.
+            Manage the main contact block at the bottom of the page.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-6">
           <div className="space-y-2">
-            <Label htmlFor="ctaTitle">Title</Label>
+            <Label htmlFor="contactTitle">Section Title</Label>
             <Input
-              id="ctaTitle"
-              value={content.cta.title}
+              id="contactTitle"
+              value={content.contact.title}
               onChange={(e) =>
-                handleNestedChange("cta", "title", e.target.value)
+                handleInputChange("contact", "title", e.target.value)
               }
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="ctaSubtitle">Subtitle</Label>
+            <Label htmlFor="contactSubtitle">Section Subtitle</Label>
             <Textarea
-              id="ctaSubtitle"
-              value={content.cta.subtitle}
+              id="contactSubtitle"
+              value={content.contact.subtitle}
               onChange={(e) =>
-                handleNestedChange("cta", "subtitle", e.target.value)
+                handleInputChange("contact", "subtitle", e.target.value)
               }
             />
+          </div>
+          <div className="space-y-4 rounded-md border p-4">
+            <Label className="text-base font-semibold">
+              &quot;Let&apos;s Connect&quot; Card Content
+            </Label>
+            <div className="space-y-2">
+              <Label htmlFor="connectTitle">Card Title</Label>
+              <Input
+                id="connectTitle"
+                value={content.contact.connectCardTitle}
+                onChange={(e) =>
+                  handleInputChange(
+                    "contact",
+                    "connectCardTitle",
+                    e.target.value
+                  )
+                }
+              />
+            </div>
+            <Label className="text-sm">Contact Items</Label>
+            {content.contact.contactItems.map((item, index) => (
+              <div key={index} className="space-y-3 rounded-lg border p-3">
+                <div className="flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      handleRemoveItem("contact", "contactItems", index)
+                    }
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Icon</Label>
+                    <Select
+                      value={item.icon}
+                      onValueChange={(v) =>
+                        handleArrayObjectChange(
+                          "contact",
+                          "contactItems",
+                          index,
+                          "icon",
+                          v
+                        )
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {contactIcons.map((i) => (
+                          <SelectItem key={i} value={i}>
+                            {i}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor={`contactItemTitle${index}`}
+                      className="text-xs"
+                    >
+                      Item Title
+                    </Label>
+                    <Input
+                      id={`contactItemTitle${index}`}
+                      value={item.title}
+                      onChange={(e) =>
+                        handleArrayObjectChange(
+                          "contact",
+                          "contactItems",
+                          index,
+                          "title",
+                          e.target.value
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`contactItemDesc${index}`}>Description</Label>
+                  <Input
+                    id={`contactItemDesc${index}`}
+                    value={item.description}
+                    onChange={(e) =>
+                      handleArrayObjectChange(
+                        "contact",
+                        "contactItems",
+                        index,
+                        "description",
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor={`contactItemSubtext${index}`}>Subtext</Label>
+                  <Input
+                    id={`contactItemSubtext${index}`}
+                    value={item.subtext}
+                    onChange={(e) =>
+                      handleArrayObjectChange(
+                        "contact",
+                        "contactItems",
+                        index,
+                        "subtext",
+                        e.target.value
+                      )
+                    }
+                  />
+                </div>
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() =>
+                handleAddItem("contact", "contactItems", {
+                  icon: "Mail",
+                  title: "",
+                  description: "",
+                  subtext: "",
+                })
+              }
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add Contact Item
+            </Button>
           </div>
         </CardContent>
       </Card>
 
       <div className="flex justify-end mt-6">
         <Button onClick={handleSave} disabled={saving || loading}>
-          {saving ? "Saving..." : "Save All Content"}
+          {saving ? "Saving..." : "Save All Changes"}
         </Button>
       </div>
     </div>

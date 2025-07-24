@@ -1,13 +1,21 @@
 // src/components/Hero.tsx
+
 import { Button } from "@/components/ui/button";
 import { Heart, Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import type { HomePageData } from "@/types/homepage"; // 1. IMPORT the main type
 
-const Hero = () => {
+// 2. DEFINE the component's props to accept the 'hero' section of our data
+interface HeroProps {
+  data: HomePageData["hero"];
+}
+
+// 3. DESTRUCTURE the 'data' prop to easily access its contents
+const Hero = ({ data }: HeroProps) => {
   return (
     <section className="relative py-20 md:py-32 bg-gradient-hero overflow-hidden">
-      {/* Decorative elements */}
+      {/* Decorative elements (these are stylistic and can remain hardcoded) */}
       <div className="absolute top-10 left-10 text-faith-gold/20 animate-pulse">
         <Star size={24} />
       </div>
@@ -29,70 +37,60 @@ const Hero = () => {
               </span>
             </div>
 
+            {/* 4. REPLACE hardcoded text with dynamic data from props */}
             <h1 className="text-4xl md:text-6xl font-bold text-foreground leading-tight mb-6">
-              Empowering Children Through
-              <span className="text-primary block">Compassionate</span>
-              <span className="text-hope-blue block">ABA Therapy</span>
+              {data.headline.part1}
+              <span className="text-primary block">{data.headline.part2}</span>
+              <span className="text-hope-blue block">
+                {data.headline.part3}
+              </span>
             </h1>
 
             <p className="text-lg text-muted-foreground mb-8 max-w-lg mx-auto md:mx-0">
-              Where faith meets science in supporting your child&apos;s unique
-              journey. Professional, trauma-informed ABA therapy that honors
-              your family&apos;s values.
+              {data.subtitle}
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center md:justify-start">
-              {/* UPDATED: Use asChild and Link for Next.js routing */}
               <Button
                 asChild
                 size="lg"
                 className="bg-primary hover:bg-primary-soft text-primary-foreground shadow-warm text-lg px-8 py-6"
               >
-                <Link href="/book">Book Free Consultation</Link>
+                <Link href="/book">{data.buttons.primary}</Link>
               </Button>
-
               <Button
                 asChild
                 variant="outline"
                 size="lg"
                 className="border-primary text-primary hover:bg-primary-light/20 text-lg px-8 py-6"
               >
-                <Link href="#services">Learn More</Link>
+                <Link href="#services">{data.buttons.secondary}</Link>
               </Button>
             </div>
 
-            {/* Trust indicators */}
+            {/* 5. DYNAMICALLY render the list of trust indicators */}
             <div className="mt-12 flex flex-col sm:flex-row items-center gap-6 text-sm text-muted-foreground">
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
-                Licensed & Insured
-              </div>
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-hope-blue rounded-full mr-2"></div>
-                Trauma-Informed Care
-              </div>
-              <div className="flex items-center">
-                <div className="w-2 h-2 bg-faith-gold rounded-full mr-2"></div>
-                Faith-Integrated
-              </div>
+              {data.trustIndicators.map((indicator) => (
+                <div key={indicator} className="flex items-center">
+                  <div className="w-2 h-2 bg-primary rounded-full mr-2"></div>
+                  {indicator}
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Image */}
+          {/* Image (this is presentational and remains as is) */}
           <div className="relative">
             <div className="relative overflow-hidden rounded-3xl shadow-warm bg-gradient-faith p-1">
-              {/* UPDATED: Changed <img> to next/image */}
               <Image
                 src="/hero-image.jpg"
-                alt="Compassionate ABA therapy session with child and therapist"
+                alt="Compassionate ABA therapy session"
                 width={600}
                 height={600}
                 className="w-full h-auto rounded-3xl object-cover"
                 priority
               />
             </div>
-
-            {/* Floating card */}
             <div className="absolute -bottom-6 -left-6 bg-card border border-border rounded-2xl p-4 shadow-gentle">
               <div className="flex items-center space-x-3">
                 <div className="w-12 h-12 bg-primary-light rounded-full flex items-center justify-center">

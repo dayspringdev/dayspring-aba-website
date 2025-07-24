@@ -1,58 +1,96 @@
 // FILE: src/types/homepage.ts
 
-import type { Database } from "@/types/supabase";
+// This file defines the "data contract" for all editable content on the homepage.
+// This single interface is used by:
+// 1. The database (as the shape of the JSONB object).
+// 2. The frontend components (as the shape of their props).
+// 3. The admin content editor (as the shape of its state).
 
-// Get the specific Profile type from our auto-generated Supabase types
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
-
-// A simple reusable type for sections with a title and description
-type TitledListItem = {
-  title: string;
-  description: string;
-};
-
-// A type for the service settings section with icons
-type ServiceSetting = {
-  icon: "home" | "tv" | "school" | "users"; // We use names to map to icon components later
-  text: string;
-};
-
-// This is the main interface that defines the entire shape of our homepage content.
-// It will be used by both the frontend component and the backend data fetching.
 export interface HomePageData {
-  profile: Profile | null;
   hero: {
+    headline: {
+      part1: string;
+      part2: string;
+      part3: string;
+    };
+    subtitle: string;
+    buttons: {
+      primary: string;
+      secondary: string;
+    };
+    trustIndicators: string[];
+  };
+  missionVision: {
     title: string;
     subtitle: string;
+    mission: {
+      title: string;
+      text: string;
+    };
+    vision: {
+      title: string;
+      text: string;
+    };
   };
-  about: {
-    title: string;
-    // An array of strings allows for multiple paragraphs in the about section
-    body: string[];
-  };
-  guidingPrinciples: {
+  coreValues: {
     title: string;
     subtitle: string;
-    values: TitledListItem[];
+    values: {
+      icon: string; // The name of the lucide-react icon, e.g., "Cross"
+      title: string;
+      description: string;
+    }[];
+  };
+  aboutUs: {
+    title: string;
+    subtitle: string;
+    imageUrl: string;
+    bio: string[];
+    credentials: string[];
   };
   services: {
     title: string;
     subtitle: string;
-    list: TitledListItem[];
+    therapyServices: {
+      icon: string;
+      title: string;
+      description: string;
+      features: string[];
+    }[];
     settingsTitle: string;
-    settings: ServiceSetting[];
+    settingsSubtitle: string;
+    settings: {
+      icon: string;
+      title: string;
+      description: string;
+    }[];
   };
-  intake: {
+  howItWorks: {
     title: string;
     subtitle: string;
-    steps: { step: number; title: string; description: string }[];
+    steps: {
+      icon: string;
+      title: string;
+      description: string;
+    }[];
   };
   faq: {
     title: string;
-    questions: { question: string; answer: string }[];
+    subtitle: string;
+    questions: {
+      question: string;
+      answer: string;
+    }[];
   };
-  cta: {
+  contact: {
     title: string;
     subtitle: string;
+    connectCardTitle: string;
+    contactItems: {
+      icon: string;
+      title: string;
+      description: string;
+      subtext: string;
+    }[];
   };
 }

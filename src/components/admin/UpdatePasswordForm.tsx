@@ -63,7 +63,7 @@ export function UpdatePasswordForm() {
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-4 mb-6">
           {/* --- NEW: New Password Input with Icon --- */}
           <div className="space-y-2">
             <Label htmlFor="new-password">New Password</Label>

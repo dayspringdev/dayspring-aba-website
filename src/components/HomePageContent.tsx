@@ -1,35 +1,36 @@
-// FILE: src/components/HomePageContent.tsx
+// src/components/HomePageContent.tsx
 
-"use client"; // This component uses animations, so it must be a client component.
+"use client";
 
-import React from "react";
-import type { HomePageData } from "@/types/homepage"; // <-- Import our new data contract
+import type { HomePageData } from "@/types/homepage";
 import Hero from "@/components/Hero";
 import MissionVision from "@/components/MissionVision";
-import CoreValues from "./CoreValues"; // <-- IMPORT CORE VALUES
-import AboutUs from "./AboutUs"; // <-- IMPORT ABOUT US
-import Services from "./Services"; // <-- IMPORT NEW SERVICES
-import HowItWorks from "./HowItWorks"; // <-- IMPORT NEW HOW IT WORKS
-import FAQ from "./FAQ"; // <-- IMPORT FAQ
-import Contact from "./Contact"; // <-- IMPORT CONTACT
+import CoreValues from "./CoreValues";
+import AboutUs from "./AboutUs";
+import Services from "./Services";
+import HowItWorks from "./HowItWorks";
+import FAQ from "./FAQ";
+import Contact from "./Contact";
 
+// Re-introduce the 'content' prop
 export function HomePageContent({ content }: { content: HomePageData | null }) {
+  // Add a robust check for loading or failed fetch
   if (!content) {
-    return <div>Loading page content...</div>;
+    // You can return a full-page loader/skeleton here
+    return <div>Loading page...</div>;
   }
 
   return (
     <>
-      <Hero />
-      <MissionVision />
-
-      <CoreValues />
-      <AboutUs />
-
-      <Services />
-      <HowItWorks />
-      <FAQ />
-      <Contact />
+      {/* Pass the real data down to each component */}
+      <Hero data={content.hero} />
+      <MissionVision data={content.missionVision} />
+      <CoreValues data={content.coreValues} />
+      <AboutUs data={content.aboutUs} />
+      <Services data={content.services} />
+      <HowItWorks data={content.howItWorks} />
+      <FAQ data={content.faq} />
+      <Contact data={content.contact} />
     </>
   );
 }

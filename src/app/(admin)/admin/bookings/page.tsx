@@ -18,7 +18,7 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-import { PlusCircle } from "lucide-react";
+import { Loader2, PlusCircle } from "lucide-react";
 import type { Database } from "@/types/supabase";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -28,6 +28,11 @@ import { NewBookingDialog } from "@/components/admin/NewBookingDialog";
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
+// 1. Define a more specific type for our loading state
+type UpdatingState = {
+  id: number;
+  action: "confirming" | "cancelling";
+} | null;
 
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -36,6 +41,8 @@ export default function BookingsPage() {
     useState<Booking | null>(null);
   const [isNewBookingDialogOpen, setIsNewBookingDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 2. Use the new, more specific state type
+  const [updatingState, setUpdatingState] = useState<UpdatingState>(null);
 
   const fetchBookings = async () => {
     try {
@@ -64,46 +71,89 @@ export default function BookingsPage() {
     bookingId: number,
     status: BookingStatus
   ) => {
-    const originalBookings = [...bookings];
-    setBookings((currentBookings) =>
-      currentBookings.map((b) => (b.id === bookingId ? { ...b, status } : b))
-    );
-    const response = await fetch(`/api/admin/bookings/${bookingId}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
+    // 3. Set the state with both the ID and the specific action
+    setUpdatingState({
+      id: bookingId,
+      action: status === "confirmed" ? "confirming" : "cancelling",
     });
-    if (!response.ok) {
+
+    const originalBookings = [...bookings];
+
+    try {
+      const response = await fetch(`/api/admin/bookings/${bookingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Could not update booking status.");
+      }
+
+      toast.success(`Booking has been ${status}.`);
+      fetchBookings();
+    } catch (err) {
       toast.error("Update failed", {
-        description: "Could not update booking status.",
+        description:
+          err instanceof Error ? err.message : "An unknown error occurred.",
       });
       setBookings(originalBookings);
-    } else {
-      toast.success(`Booking has been ${status}.`);
+    } finally {
+      // 4. Reset the state to null when done
+      setUpdatingState(null);
     }
   };
 
   const renderActionButtons = (booking: Booking) => {
+    // 5. Create specific booleans for each action
+    const isConfirming =
+      updatingState?.id === booking.id &&
+      updatingState?.action === "confirming";
+    const isDeclining =
+      updatingState?.id === booking.id &&
+      updatingState?.action === "cancelling";
+    const isAnyActionInProgress =
+      !!updatingState && updatingState.id === booking.id;
+
     if (booking.status === "pending") {
       return (
         <div className="flex flex-wrap gap-2 justify-end">
           <Button
             size="sm"
             onClick={() => handleUpdateStatus(booking.id, "confirmed")}
+            disabled={isAnyActionInProgress}
           >
-            Confirm
+            {isConfirming ? (
+              <>
+                Confirming...
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              </>
+            ) : (
+              "Confirm"
+            )}
           </Button>
           <Button
             size="sm"
             variant="outline"
             onClick={() => handleUpdateStatus(booking.id, "cancelled")}
+            disabled={isAnyActionInProgress}
           >
-            Decline
+            {isDeclining ? (
+              <>
+                Declining...
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              </>
+            ) : (
+              "Decline"
+            )}
           </Button>
         </div>
       );
     }
     if (booking.status === "confirmed") {
+      const isCancelling =
+        updatingState?.id === booking.id &&
+        updatingState?.action === "cancelling";
       return (
         <div className="flex flex-wrap gap-2 justify-end">
           <Button
@@ -111,6 +161,7 @@ export default function BookingsPage() {
             variant="outline"
             className="cursor-pointer"
             onClick={() => setBookingToReschedule(booking)}
+            disabled={isCancelling}
           >
             Reschedule
           </Button>
@@ -119,8 +170,16 @@ export default function BookingsPage() {
             variant="destructive"
             className="cursor-pointer"
             onClick={() => handleUpdateStatus(booking.id, "cancelled")}
+            disabled={isCancelling}
           >
-            Cancel
+            {isCancelling ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Cancelling...
+              </>
+            ) : (
+              "Cancel"
+            )}
           </Button>
         </div>
       );
@@ -128,6 +187,7 @@ export default function BookingsPage() {
     return null;
   };
 
+  // The rest of the component (return statement, etc.) is unchanged
   return (
     <>
       <div className="space-y-6">
@@ -180,7 +240,6 @@ export default function BookingsPage() {
                             </div>
                           </TableCell>
                           <TableCell>
-                            {/* === FIX 1: Desktop View === */}
                             {format(
                               new Date(booking.slot_time),
                               "EEEE, PPP, p"
@@ -192,8 +251,8 @@ export default function BookingsPage() {
                                 booking.status === "confirmed"
                                   ? "success"
                                   : booking.status === "pending"
-                                  ? "secondary"
-                                  : "destructive"
+                                    ? "secondary"
+                                    : "destructive"
                               }
                             >
                               {booking.status}
@@ -234,7 +293,6 @@ export default function BookingsPage() {
                         <span className="text-muted-foreground">
                           Date & Time:
                         </span>
-                        {/* === FIX 2: Mobile View === */}
                         <span className="font-medium">
                           {format(new Date(booking.slot_time), "EEEE, PPP, p")}
                         </span>
@@ -246,8 +304,8 @@ export default function BookingsPage() {
                             booking.status === "confirmed"
                               ? "success"
                               : booking.status === "pending"
-                              ? "secondary"
-                              : "destructive"
+                                ? "secondary"
+                                : "destructive"
                           }
                         >
                           {booking.status}

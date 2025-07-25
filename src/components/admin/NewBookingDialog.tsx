@@ -25,6 +25,7 @@ import {
 } from "date-fns";
 import { toast } from "sonner";
 import { CalendarSkeleton } from "@/components/CalendarSkeleton";
+import { Loader2 } from "lucide-react"; // 1. Import the Loader2 icon
 
 interface NewBookingDialogProps {
   open: boolean;
@@ -57,8 +58,7 @@ export function NewBookingDialog({
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
 
-  // HOOK 1: Fetches available TIMES for a specific DAY when `selectedDate` changes.
-  // THIS WAS THE MISSING PIECE IN THE CODE YOU PROVIDED.
+  // All hooks and handlers remain the same...
   useEffect(() => {
     if (selectedDate) {
       setIsLoadingTimes(true);
@@ -74,7 +74,6 @@ export function NewBookingDialog({
     }
   }, [selectedDate]);
 
-  // HOOK 2: Fetches UNAVAILABLE DATES for the entire MONTH for the skeleton and disabled dates.
   useEffect(() => {
     if (open) {
       setIsLoadingAvailability(true);
@@ -97,7 +96,6 @@ export function NewBookingDialog({
     }
   }, [currentMonth, open]);
 
-  // HOOK 3: Resets state when the dialog is opened or closed.
   useEffect(() => {
     if (!open) {
       setTimeout(() => {
@@ -133,6 +131,7 @@ export function NewBookingDialog({
       body: JSON.stringify({
         slotTime: selectedTime,
         clientDetails: formData,
+        bookedByAdmin: true,
       }),
     }).then(async (res) => {
       if (!res.ok) {
@@ -184,6 +183,7 @@ export function NewBookingDialog({
   };
 
   const renderStepContent = () => {
+    // ... no changes here
     switch (step) {
       case 1:
         return (
@@ -315,6 +315,7 @@ export function NewBookingDialog({
   const renderFooter = () => {
     switch (step) {
       case 1:
+        // ... no changes here
         return (
           <DialogFooter>
             <Button
@@ -336,6 +337,7 @@ export function NewBookingDialog({
           </DialogFooter>
         );
       case 2:
+        // ... no changes here
         return (
           <DialogFooter className="sm:justify-between">
             <Button type="button" variant="outline" onClick={() => setStep(1)}>
@@ -356,12 +358,20 @@ export function NewBookingDialog({
             <Button type="button" variant="outline" onClick={() => setStep(2)}>
               Back
             </Button>
+            {/* --- THIS IS THE FIX --- */}
             <Button
               type="button"
               onClick={handleSubmit}
               disabled={isSubmitting}
             >
-              {isSubmitting ? "Creating..." : "Confirm & Create"}
+              {isSubmitting ? (
+                <>
+                  Creating...
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                </>
+              ) : (
+                "Confirm & Create"
+              )}
             </Button>
           </DialogFooter>
         );

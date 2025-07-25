@@ -15,20 +15,20 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import Image from "next/image";
 import { Skeleton } from "../ui/skeleton";
 
-type Profile = Database["public"]["Tables"]["profiles"]["Row"];
+type Profile = Database["public"]["Tables"]["profiles"]["Row"] & {
+  public_contact_email?: string | null;
+};
 
 export function UpdateProfileForm() {
   const supabase = createClient();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [uploading, setUploading] = useState(false);
 
-  // A single function to fetch the profile data
   const fetchProfile = useCallback(async () => {
     setLoading(true);
+    // We only need the one field, but fetching '*' is fine and simple.
     const { data, error } = await supabase
       .from("profiles")
       .select("*")
@@ -40,88 +40,45 @@ export function UpdateProfileForm() {
     }
     setProfile(data);
     setLoading(false);
-  }, [supabase]); // Its only dependency is supabase
+  }, [supabase]);
 
   useEffect(() => {
     fetchProfile();
-  }, [fetchProfile]); // The ESLint warning will now be gone
+  }, [fetchProfile]);
 
   const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!profile) return;
     setLoading(true);
 
+    // Only update the field this form is responsible for.
     const { error } = await supabase
       .from("profiles")
       .update({
-        full_name: profile.full_name,
-        role_title: profile.role_title,
-        updated_at: new Date().toISOString(), // Good practice to update a timestamp
-      })
-      .eq("id", 1); // Always update the row where id is 1
-
-    if (error) {
-      toast.error("Update failed", { description: error.message });
-    } else {
-      toast.success("Profile updated successfully!");
-    }
-    setLoading(false);
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return;
-
-    const file = e.target.files[0];
-    const fileExt = file.name.split(".").pop();
-    // Use a consistent name for the avatar to overwrite it, or a random one to keep old ones
-    const filePath = `public-avatar.${fileExt}`;
-
-    setUploading(true);
-    const { error: uploadError } = await supabase.storage
-      .from("profile-images")
-      .upload(filePath, file, { upsert: true }); // upsert overwrites the old image
-
-    if (uploadError) {
-      toast.error("Upload failed", { description: uploadError.message });
-      setUploading(false);
-      return;
-    }
-
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("profile-images").getPublicUrl(filePath);
-
-    // Update the UI and the database immediately
-    setProfile((prev) => (prev ? { ...prev, avatar_url: publicUrl } : null));
-    const { error: dbError } = await supabase
-      .from("profiles")
-      .update({
-        avatar_url: publicUrl,
+        public_contact_email: profile.public_contact_email,
         updated_at: new Date().toISOString(),
       })
       .eq("id", 1);
 
-    if (dbError) {
-      toast.error("Failed to save avatar", { description: dbError.message });
+    if (error) {
+      toast.error("Update failed", { description: error.message });
     } else {
-      toast.success("Avatar updated!");
+      toast.success("Public contact email updated successfully!");
     }
-
-    setUploading(false);
+    setLoading(false);
   };
 
   if (loading) {
     return (
       <Card className="max-w-2xl">
         <CardHeader>
-          <CardTitle>Profile Information</CardTitle>
+          <CardTitle>Contact Email Configuration</CardTitle>
+          <CardDescription>
+            Set the email address where messages from the website&apos;s contact
+            form will be sent.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Skeleton className="h-24 w-24 rounded-full" />
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-20" />
-            <Skeleton className="h-9 w-full" />
-          </div>
           <div className="space-y-2">
             <Skeleton className="h-4 w-20" />
             <Skeleton className="h-9 w-full" />
@@ -134,66 +91,38 @@ export function UpdateProfileForm() {
   return (
     <Card className="max-w-2xl mb-6 shadow-none border-muted/20">
       <CardHeader>
-        <CardTitle>Profile Information</CardTitle>
+        <CardTitle>Contact Email Configuration</CardTitle>
         <CardDescription>
-          This information will be displayed on the public homepage.
+          Set the email address where messages from the website&apos;s contact
+          form will be sent.
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleUpdateProfile}>
-        <CardContent className="space-y-4">
+        <CardContent>
+          {/* REMOVED: Full Name and Role Title inputs are gone. */}
           <div className="space-y-2">
-            <Label>Headshot</Label>
-            <div className="flex items-center gap-4">
-              {profile?.avatar_url ? (
-                <Image
-                  src={profile.avatar_url}
-                  alt="Current headshot"
-                  width={96}
-                  height={96}
-                  className="h-24 w-24 rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground">
-                  No Image
-                </div>
-              )}
-              <Input
-                id="avatar"
-                type="file"
-                accept="image/*"
-                onChange={handleFileUpload}
-                disabled={uploading}
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="fullName">Full Name</Label>
+            <Label htmlFor="publicContactEmail">Public Contact Email</Label>
             <Input
-              id="fullName"
-              value={profile?.full_name || ""}
+              id="publicContactEmail"
+              type="email"
+              value={profile?.public_contact_email || ""}
               onChange={(e) =>
                 setProfile((prev) =>
-                  prev ? { ...prev, full_name: e.target.value } : null
+                  prev
+                    ? { ...prev, public_contact_email: e.target.value }
+                    : null
                 )
               }
             />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="roleTitle">Role / Title</Label>
-            <Input
-              id="roleTitle"
-              value={profile?.role_title || ""}
-              onChange={(e) =>
-                setProfile((prev) =>
-                  prev ? { ...prev, role_title: e.target.value } : null
-                )
-              }
-            />
+            <p className="text-xs text-muted-foreground">
+              This is where you will receive messages from the website&apos;s
+              contact form.
+            </p>
           </div>
         </CardContent>
-        <CardFooter className="border-t pt-6">
+        <CardFooter className="border-t pt-6 mt-4">
           <Button type="submit" disabled={loading}>
-            {loading ? "Saving..." : "Save Profile"}
+            {loading ? "Saving..." : "Save Email"}
           </Button>
         </CardFooter>
       </form>

@@ -1,7 +1,7 @@
 // src/components/Contact.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, FormEvent } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,12 +17,14 @@ import {
   Linkedin,
   Twitter,
   CheckCircle,
+  Loader2, // Make sure Loader2 is imported
 } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
 import { Label } from "./ui/label";
-import type { HomePageData } from "@/types/homepage";
+import type { HomePageData, SocialMediaLink } from "@/types/homepage";
+import { toast } from "sonner"; // Import toast for feedback
 
-// Icon map for the contact items
+// Icon maps
 const contactIcons = {
   Mail: { Component: Mail, color: "text-primary", bgColor: "bg-primary-light" },
   Phone: {
@@ -41,8 +43,6 @@ const contactIcons = {
     bgColor: "bg-love-rose/10",
   },
 };
-
-// NEW: Add map for social icons
 const socialIcons = {
   Instagram: Instagram,
   Facebook: Facebook,
@@ -50,12 +50,10 @@ const socialIcons = {
   Twitter: Twitter,
 };
 
-// Define the component's props
 interface ContactProps {
   data: HomePageData["contact"];
 }
 
-// Confirmation message component (unchanged)
 const ConfirmationMessage = ({ onReset }: { onReset: () => void }) => (
   <div className="flex h-full min-h-[500px] flex-col items-center justify-center space-y-6 rounded-xl p-8 text-center">
     <CheckCircle className="h-16 w-16 text-primary" />
@@ -76,11 +74,71 @@ const ConfirmationMessage = ({ onReset }: { onReset: () => void }) => (
 
 const Contact = ({ data }: ContactProps) => {
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  // This state was missing in your version
+  const [socialLinks, setSocialLinks] = useState<SocialMediaLink[]>([]);
 
-  const handleFormSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  // This hook was missing in your version
+  useEffect(() => {
+    const fetchSocialLinks = async () => {
+      try {
+        const response = await fetch("/api/social-links");
+        if (!response.ok) {
+          throw new Error("Failed to fetch social links");
+        }
+        const linksData: SocialMediaLink[] = await response.json();
+        setSocialLinks(linksData);
+      } catch (error) {
+        // Fallback to the server-rendered data if API fails
+        setSocialLinks(data.socialMediaLinks || []);
+        console.error(
+          "Error fetching social links for contact section:",
+          error
+        );
+      }
+    };
+    fetchSocialLinks();
+  }, [data.socialMediaLinks]); // Depend on the initial data
+
+  // This is the new, async handler that calls the API
+  const handleFormSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setTimeout(() => setIsSubmitted(true), 1000);
+    setIsSubmitting(true);
+
+    const formData = new FormData(e.currentTarget);
+    const body = {
+      firstName: formData.get("first-name"),
+      lastName: formData.get("last-name"),
+      email: formData.get("email"),
+      phone: formData.get("phone"),
+      message: formData.get("message"),
+    };
+
+    try {
+      const response = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to send message. Please try again.");
+      }
+
+      setIsSubmitted(true);
+    } catch (error) {
+      toast.error("Submission Failed", {
+        description:
+          error instanceof Error ? error.message : "An unknown error occurred.",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  // Determine which links to show: client-fetched or server-provided
+  const linksToDisplay =
+    socialLinks.length > 0 ? socialLinks : data.socialMediaLinks;
 
   return (
     <AnimatedSection
@@ -133,15 +191,13 @@ const Contact = ({ data }: ContactProps) => {
                       );
                     })}
                   </div>
-                  {/* ============== MODIFIED SOCIAL LINKS SECTION ============== */}
                   <div className="mt-8 pt-6 border-t border-border/50">
                     <h4 className="font-semibold text-foreground mb-3">
                       Follow Our Journey
                     </h4>
-                    {data.socialMediaLinks &&
-                    data.socialMediaLinks.length > 0 ? (
+                    {linksToDisplay && linksToDisplay.length > 0 ? (
                       <div className="flex items-center space-x-3">
-                        {data.socialMediaLinks.map((link) => {
+                        {linksToDisplay.map((link) => {
                           const IconComponent =
                             socialIcons[link.icon as keyof typeof socialIcons];
                           if (!IconComponent) return null;
@@ -190,6 +246,7 @@ const Contact = ({ data }: ContactProps) => {
                         <Label htmlFor="first-name">First Name</Label>
                         <Input
                           id="first-name"
+                          name="first-name"
                           placeholder="John"
                           required
                           className="bg-background border-border"
@@ -199,6 +256,7 @@ const Contact = ({ data }: ContactProps) => {
                         <Label htmlFor="last-name">Last Name</Label>
                         <Input
                           id="last-name"
+                          name="last-name"
                           placeholder="Doe"
                           required
                           className="bg-background border-border"
@@ -209,6 +267,7 @@ const Contact = ({ data }: ContactProps) => {
                       <Label htmlFor="email">Email</Label>
                       <Input
                         id="email"
+                        name="email"
                         type="email"
                         placeholder="you@example.com"
                         required
@@ -219,6 +278,7 @@ const Contact = ({ data }: ContactProps) => {
                       <Label htmlFor="phone">Phone Number</Label>
                       <Input
                         id="phone"
+                        name="phone"
                         type="tel"
                         placeholder="(123) 456-7890"
                         className="bg-background border-border"
@@ -228,6 +288,7 @@ const Contact = ({ data }: ContactProps) => {
                       <Label htmlFor="message">Message</Label>
                       <Textarea
                         id="message"
+                        name="message"
                         placeholder="Your message..."
                         className="min-h-[120px] bg-background border-border"
                         required
@@ -237,9 +298,19 @@ const Contact = ({ data }: ContactProps) => {
                       type="submit"
                       className="w-full bg-primary hover:bg-primary-soft text-primary-foreground shadow-gentle"
                       size="lg"
+                      disabled={isSubmitting}
                     >
-                      <Send className="mr-2" size={18} />
-                      Send Message
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="mr-2" size={18} />
+                          Send Message
+                        </>
+                      )}
                     </Button>
                   </form>
                 </CardContent>

@@ -120,13 +120,15 @@ export type Database = {
           avatar_url: string | null
           full_name: string | null
           id: number
+          public_contact_email: string | null
           role_title: string | null
           updated_at: string | null
         }
         Insert: {
           avatar_url?: string | null
           full_name?: string | null
-          id?: number
+          id: number
+          public_contact_email?: string | null
           role_title?: string | null
           updated_at?: string | null
         }
@@ -134,6 +136,7 @@ export type Database = {
           avatar_url?: string | null
           full_name?: string | null
           id?: number
+          public_contact_email?: string | null
           role_title?: string | null
           updated_at?: string | null
         }
@@ -162,7 +165,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_admin_email: {
+        Args: Record<PropertyKey, never>
+        Returns: string
+      }
     }
     Enums: {
       booking_status: "pending" | "confirmed" | "cancelled"

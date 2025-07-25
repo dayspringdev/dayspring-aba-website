@@ -18,8 +18,8 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"; // Import Select components
-import { useState } from "react"; // Import useState for controlling the select
+} from "@/components/ui/select";
+import { useState, useEffect } from "react"; // Import useEffect
 
 const navLinks = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
@@ -37,18 +37,25 @@ export default function AdminLayout({
   const supabase = createClient();
   const pathname = usePathname();
   const router = useRouter();
-  // Add state to control the value of the <select>
   const [selectedLink, setSelectedLink] = useState(pathname);
+
+  // --- THIS IS THE FIX ---
+  // This effect runs whenever the `pathname` changes (i.e., the URL changes).
+  // It ensures the state driving the <Select> component is always in sync
+  // with the actual page the user is on.
+  useEffect(() => {
+    setSelectedLink(pathname);
+  }, [pathname]);
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
     window.location.href = "/";
   };
 
-  // Handler for <select> change event
+  // Handler for <select> change event remains the same
   const handleSelectChange = (value: string) => {
     setSelectedLink(value);
-    router.push(value); // Navigate to the selected route
+    router.push(value);
   };
 
   return (

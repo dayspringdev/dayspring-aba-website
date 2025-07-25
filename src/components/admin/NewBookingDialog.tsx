@@ -75,7 +75,12 @@ export function NewBookingDialog({
         setSelectedDate(tomorrow);
       }
     }
-  }, [open]);
+    // --- THIS IS THE FIX ---
+    // Add `selectedDate` to the dependency array. This makes the effect
+    // correctly "listen" to changes in both `open` and `selectedDate`,
+    // ensuring the logic inside never runs with stale data. This also
+    // satisfies the ESLint rule.
+  }, [open, selectedDate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
@@ -85,8 +90,7 @@ export function NewBookingDialog({
   const handleSubmit = async () => {
     if (!selectedTime) return;
     setIsSubmitting(true);
-    
-    // Create a promise that intelligently handles the fetch response.
+
     const promise = fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -95,43 +99,32 @@ export function NewBookingDialog({
         clientDetails: formData,
       }),
     }).then(async (res) => {
-      // If the response is not successful (e.g., 409 Conflict)
       if (!res.ok) {
-        // Parse the JSON body to get the specific error message from the API.
         const errorData = await res.json();
-        // Throw an error with that specific message.
         throw new Error(errorData.error || "Failed to create appointment.");
       }
-      // If successful, return the JSON data as normal.
       return res.json();
     });
 
-    // Use toast.promise to handle the loading, success, and error states.
     toast.promise(promise, {
       loading: "Creating appointment...",
       success: () => {
-        onBookingCreated(); // Refresh the booking list
-        onOpenChange(false); // Close the dialog
+        onBookingCreated();
+        onOpenChange(false);
         return "Appointment created successfully!";
       },
       error: (err) => {
-        // If the specific race condition error occurs...
         if (err.message.includes("no longer available")) {
-          // ...send the admin back to the time selection step.
           setStep(2);
-          // ...and clear the invalid time they selected.
-          setSelectedTime(null); 
+          setSelectedTime(null);
         }
-        // Return the specific error message to be displayed in the toast.
         return err.message;
       },
       finally: () => setIsSubmitting(false),
     });
   };
 
-
   const proceedToTimeSelection = () => {
-    // If a date hasn't already been picked, default to tomorrow.
     if (!selectedDate) {
       const tomorrow = addDays(new Date(), 1);
       setSelectedDate(tomorrow);
@@ -141,9 +134,8 @@ export function NewBookingDialog({
 
   const renderStepContent = () => {
     switch (step) {
-      case 1: // Client Information
+      case 1:
         return (
-          // --- CHANGE: Added flexbox centering classes ---
           <div className="min-h-[340px] flex justify-center items-center">
             <div className="w-full grid gap-4 py-4">
               <div className="grid grid-cols-4 items-center gap-4">
@@ -186,10 +178,8 @@ export function NewBookingDialog({
             </div>
           </div>
         );
-      case 2: // Date and Time Selection
+      case 2:
         return (
-          // The content of this step already fills the space, so no centering needed.
-          // The existing wrapper provides the consistent height.
           <div className="min-h-[340px] grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
             <div className="flex justify-center items-center">
               <Calendar
@@ -231,9 +221,8 @@ export function NewBookingDialog({
             </div>
           </div>
         );
-      case 3: // Review
+      case 3:
         return (
-          // --- CHANGE: Added flexbox centering classes ---
           <div className="min-h-[340px] flex justify-center items-center">
             <div className="w-full space-y-4 py-4 text-sm">
               <p>Please confirm the details for the new appointment:</p>
@@ -276,7 +265,6 @@ export function NewBookingDialog({
             >
               Cancel
             </Button>
-            {/* This button now calls our updated function */}
             <Button
               type="button"
               onClick={proceedToTimeSelection}
@@ -325,7 +313,6 @@ export function NewBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* The consistent size is now controlled by the min-height in renderStepContent */}
       <DialogContent className="sm:max-w-[625px] p-10">
         <DialogHeader>
           <DialogTitle>New Appointment</DialogTitle>

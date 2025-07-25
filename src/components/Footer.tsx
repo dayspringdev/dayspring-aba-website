@@ -2,13 +2,45 @@
 
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useLenis } from "@/context/LenisContext";
-import { Mail, Instagram } from "lucide-react";
+import { Mail, Instagram, Facebook, Linkedin, Twitter } from "lucide-react";
 import Image from "next/image";
+import type { SocialMediaLink } from "@/types/homepage";
+
+// A map to look up the correct icon component based on the string from the database.
+const socialIcons = {
+  Instagram: Instagram,
+  Facebook: Facebook,
+  Linkedin: Linkedin,
+  Twitter: Twitter,
+};
 
 export function Footer() {
+  const [socialLinks, setSocialLinks] = useState<SocialMediaLink[]>([]);
   const lenis = useLenis();
+
+  // This useEffect hook runs once when the component mounts in the user's browser.
+  useEffect(() => {
+    // We define an async function to fetch data from our lightweight API route.
+    const fetchSocialLinks = async () => {
+      try {
+        const response = await fetch("/api/social-links");
+        if (!response.ok) {
+          throw new Error("Failed to fetch social links");
+        }
+        const data: SocialMediaLink[] = await response.json();
+        setSocialLinks(data);
+      } catch (error) {
+        // If the fetch fails, we log the error but don't crash the page.
+        // The footer will simply show the "coming soon" message.
+        console.error("Error fetching social links for footer:", error);
+      }
+    };
+
+    fetchSocialLinks();
+  }, []); // The empty array [] means this effect only runs on the initial render.
 
   const handleScrollTo = (targetId: string) => {
     if (lenis) {
@@ -28,7 +60,7 @@ export function Footer() {
   return (
     <footer className="w-full border-t border-border/50 bg-primary text-primary-foreground">
       <div className="container mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 py-12 sm:px-6 md:grid-cols-3 lg:px-8">
-        {/* Column 1: DBTS Section */}
+        {/* Column 1: DBTS Section (Unchanged) */}
         <div>
           <button
             onClick={handleScrollToTop}
@@ -45,20 +77,17 @@ export function Footer() {
                 <span className="block">Dayspring</span>
                 <span className="block">Behavioural</span>
               </h3>
-              {/* === THE FIX IS HERE === */}
-              {/* Added the missing subtitle <p> tag */}
               <p className="text-xs tracking-widest text-primary-foreground/80">
                 THERAPEUTIC SERVICES
               </p>
             </div>
           </button>
-
           <p className="mt-4 text-sm text-primary-foreground/80">
             Providing compassionate care for a brighter tomorrow.
           </p>
         </div>
 
-        {/* Other columns are unchanged */}
+        {/* Column 2 & 3 (Unchanged logic, but with the updated social section) */}
         <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-8">
           <div>
             <h4 className="font-semibold text-primary-foreground">
@@ -118,18 +147,47 @@ export function Footer() {
                   </p>
                 </div>
               </div>
+
+              {/* === THIS IS THE DYNAMIC PART === */}
               <div className="pt-4">
                 <p className="text-sm text-primary-foreground/80 mb-2">
                   Follow our journey:
                 </p>
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-primary-foreground/10 rounded-lg flex items-center justify-center">
-                    <Instagram className="text-primary-foreground" size={16} />
+                {socialLinks.length > 0 ? (
+                  // If links exist, map over them and render an icon for each.
+                  <div className="flex items-center space-x-3">
+                    {socialLinks.map((link) => {
+                      const IconComponent =
+                        socialIcons[link.icon as keyof typeof socialIcons];
+                      if (!IconComponent) return null; // Failsafe
+                      return (
+                        <a
+                          key={link.icon}
+                          href={link.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="w-8 h-8 bg-primary-foreground/10 rounded-lg flex items-center justify-center text-primary-foreground transition-opacity hover:opacity-80"
+                          aria-label={`Follow us on ${link.icon}`}
+                        >
+                          <IconComponent size={16} />
+                        </a>
+                      );
+                    })}
                   </div>
-                  <span className="text-sm text-primary-foreground/80">
-                    Instagram (coming soon!)
-                  </span>
-                </div>
+                ) : (
+                  // If no links are available (or they are still loading), show the placeholder.
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 bg-primary-foreground/10 rounded-lg flex items-center justify-center">
+                      <Instagram
+                        className="text-primary-foreground/50"
+                        size={16}
+                      />
+                    </div>
+                    <span className="text-sm text-primary-foreground/80">
+                      Socials coming soon!
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           </div>

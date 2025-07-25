@@ -270,6 +270,7 @@ export const mockHomePageContent: HomePageData = {
         subtext: "Virtual sessions available",
       },
     ],
+    socialMediaLinks: [],
   },
   // ==========================
 };

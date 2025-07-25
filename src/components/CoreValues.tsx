@@ -3,10 +3,9 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { Cross, FlaskConical, Shield, Zap, Users } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
-import type { HomePageData } from "@/types/homepage"; // 1. IMPORT the type
+import type { HomePageData } from "@/types/homepage";
 
-// 2. CREATE A MAP to translate string names from data into actual components and styles.
-// This is a powerful pattern that keeps your data clean and your component smart.
+// This map of icons and their styles is correct.
 const iconMap = {
   Cross: {
     Component: Cross,
@@ -35,7 +34,6 @@ const iconMap = {
   },
 };
 
-// 3. DEFINE the component's props
 interface CoreValuesProps {
   data: HomePageData["coreValues"];
 }
@@ -54,20 +52,18 @@ const CoreValues = ({ data }: CoreValuesProps) => {
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 max-w-6xl mx-auto">
-          {/* 4. DYNAMICALLY RENDER the values using the map */}
           {data.values.map((value, index) => {
-            // Look up the correct icon component and styles from our map
             const Icon = iconMap[value.icon as keyof typeof iconMap];
-
-            // A failsafe in case the data has an icon name we don't recognize
             if (!Icon) return null;
 
             return (
+              // The parent card needs the `group` class.
               <Card
                 key={index}
                 className="bg-card border border-border/50 shadow-gentle hover:shadow-warm transition-all duration-300 group hover:-translate-y-1"
               >
                 <CardContent className="p-6 text-center">
+                  {/* The child element listens for the hover with `group-hover`. */}
                   <div
                     className={`w-16 h-16 ${Icon.bgColor} rounded-full flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform duration-300`}
                   >

@@ -1,27 +1,17 @@
 // src/app/(public)/page.tsx
 
-import { publicSupabase } from "@/lib/supabase/public-server";
 import { HomePageContent } from "@/components/HomePageContent";
-import type { HomePageData } from "@/types/homepage";
+import { getHomepageContent } from "@/lib/data-access/homepage"; // <-- IMPORT our new function
 
 export const revalidate = 60;
 
 export default async function Home() {
-  const { data, error } = await publicSupabase
-    .from("homepage_content")
-    .select("content")
-    .eq("id", 1)
-    .single();
+  // Call the single, cached function to get the data
+  const pageContent = await getHomepageContent();
 
-  if (error || !data) {
-    console.error("Failed to fetch homepage content:", error);
+  if (!pageContent) {
     return <div>Error loading page. Please try again later.</div>;
   }
-
-  // === THE FIX IS HERE ===
-  // This tells TypeScript: "Treat 'data.content' as an unknown type first,
-  // then I, the developer, assert that it is of type HomePageData."
-  const pageContent = data.content as unknown as HomePageData;
 
   return <HomePageContent content={pageContent} />;
 }

@@ -29,12 +29,15 @@ import { Skeleton } from "../ui/skeleton";
 import { toast } from "sonner";
 import { Json } from "@/types/supabase";
 
+// Define the icon lists
 const coreValueIcons = ["Cross", "FlaskConical", "Shield", "Zap", "Users"];
 const serviceIcons = ["User", "Users"];
 const settingIcons = ["Home", "Video", "School", "MapPin"];
 const howItWorksIcons = ["Phone", "FileText", "Target", "Play", "TrendingUp"];
 const contactIcons = ["Mail", "Phone", "Clock", "MapPin"];
+const socialMediaIcons = ["Instagram", "Facebook", "Linkedin", "Twitter"];
 
+// A reusable type for our generic handlers to avoid 'any'
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type SectionObject = { [key: string]: any };
 
@@ -56,9 +59,22 @@ export function ContentEditor() {
     if (error || !data) {
       toast.error("Failed to load page content.");
       console.error(error);
-    } else {
-      setContent(data.content as unknown as HomePageData);
+      // Set loading to false even on error to stop the skeleton
+      setLoading(false);
+      return;
     }
+
+    // === THIS IS THE FIX ===
+    // We safely cast the data and then check if the new property exists.
+    const pageData = data.content as unknown as HomePageData;
+
+    // If contact.socialMediaLinks is missing or null, initialize it as an empty array.
+    if (!pageData.contact.socialMediaLinks) {
+      pageData.contact.socialMediaLinks = [];
+    }
+
+    // Now we can safely set the state.
+    setContent(pageData);
     setLoading(false);
   }, [supabase]);
 
@@ -108,6 +124,8 @@ export function ContentEditor() {
     toast.success("Image uploaded! Remember to save all changes.");
   };
 
+  // --- IMMUTABLE STATE HANDLERS ---
+
   const handleInputChange = (
     section: keyof HomePageData,
     key: string,
@@ -116,8 +134,12 @@ export function ContentEditor() {
   ) => {
     setContent((prev) => {
       if (!prev) return null;
-      const newContent = { ...prev };
+      // This handler was already correctly implemented and remains unchanged.
+      const newContent = { ...prev, [section]: { ...prev[section] } };
       if (subkey) {
+        (newContent[section] as SectionObject)[key] = {
+          ...(newContent[section] as SectionObject)[key],
+        };
         (newContent[section] as SectionObject)[key][subkey] = value;
       } else {
         (newContent[section] as SectionObject)[key] = value;
@@ -125,6 +147,8 @@ export function ContentEditor() {
       return newContent;
     });
   };
+
+  // === FIX: Corrected all array handlers to be fully immutable ===
 
   const handleArrayObjectChange = (
     section: keyof HomePageData,
@@ -135,12 +159,18 @@ export function ContentEditor() {
   ) => {
     setContent((prev) => {
       if (!prev) return null;
-      const newContent = { ...prev };
-      const list = (newContent[section] as SectionObject)[
+      const oldList = (prev[section] as SectionObject)[
         listKey
       ] as SectionObject[];
-      list[index][field] = value;
-      return newContent;
+      return {
+        ...prev,
+        [section]: {
+          ...prev[section],
+          [listKey]: oldList.map((item, i) =>
+            i === index ? { ...item, [field]: value } : item
+          ),
+        },
+      };
     });
   };
 
@@ -151,10 +181,14 @@ export function ContentEditor() {
   ) => {
     setContent((prev) => {
       if (!prev) return null;
-      const newContent = { ...prev };
-      const list = (newContent[section] as SectionObject)[listKey] as object[];
-      list.push(newItem);
-      return newContent;
+      const oldList = (prev[section] as SectionObject)[listKey];
+      return {
+        ...prev,
+        [section]: {
+          ...prev[section],
+          [listKey]: [...oldList, newItem],
+        },
+      };
     });
   };
 
@@ -165,10 +199,14 @@ export function ContentEditor() {
   ) => {
     setContent((prev) => {
       if (!prev) return null;
-      const newContent = { ...prev };
-      const list = (newContent[section] as SectionObject)[listKey] as unknown[];
-      list.splice(index, 1);
-      return newContent;
+      const oldList = (prev[section] as SectionObject)[listKey];
+      return {
+        ...prev,
+        [section]: {
+          ...prev[section],
+          [listKey]: oldList.filter((_: unknown, i: number) => i !== index),
+        },
+      };
     });
   };
 
@@ -180,10 +218,14 @@ export function ContentEditor() {
   ) => {
     setContent((prev) => {
       if (!prev) return null;
-      const newContent = { ...prev };
-      const list = (newContent[section] as SectionObject)[listKey] as string[];
-      list[index] = value;
-      return newContent;
+      const oldList = (prev[section] as SectionObject)[listKey] as string[];
+      return {
+        ...prev,
+        [section]: {
+          ...prev[section],
+          [listKey]: oldList.map((item, i) => (i === index ? value : item)),
+        },
+      };
     });
   };
 
@@ -193,10 +235,14 @@ export function ContentEditor() {
   ) => {
     setContent((prev) => {
       if (!prev) return null;
-      const newContent = { ...prev };
-      const list = (newContent[section] as SectionObject)[listKey] as string[];
-      list.push("");
-      return newContent;
+      const oldList = (prev[section] as SectionObject)[listKey];
+      return {
+        ...prev,
+        [section]: {
+          ...prev[section],
+          [listKey]: [...oldList, ""],
+        },
+      };
     });
   };
 
@@ -207,10 +253,14 @@ export function ContentEditor() {
   ) => {
     setContent((prev) => {
       if (!prev) return null;
-      const newContent = { ...prev };
-      const list = (newContent[section] as SectionObject)[listKey] as string[];
-      list.splice(index, 1);
-      return newContent;
+      const oldList = (prev[section] as SectionObject)[listKey];
+      return {
+        ...prev,
+        [section]: {
+          ...prev[section],
+          [listKey]: oldList.filter((_: unknown, i: number) => i !== index),
+        },
+      };
     });
   };
 
@@ -222,12 +272,21 @@ export function ContentEditor() {
   ) => {
     setContent((prev) => {
       if (!prev) return null;
-      const newContent = { ...prev };
-      const list = (newContent[section] as SectionObject)[listKey] as {
-        features: string[];
-      }[];
-      list[index].features = value.split("\n");
-      return newContent;
+      const oldList = (prev[section] as SectionObject)[
+        listKey
+      ] as SectionObject[];
+      return {
+        ...prev,
+        [section]: {
+          ...prev[section],
+          [listKey]: oldList.map((item, i) => {
+            if (i === index) {
+              return { ...item, features: value.split("\n") };
+            }
+            return item;
+          }),
+        },
+      };
     });
   };
 
@@ -1397,6 +1456,93 @@ export function ContentEditor() {
             >
               <PlusCircle className="mr-2 h-4 w-4" />
               Add Contact Item
+            </Button>
+          </div>
+
+          {/* ================== NEW SOCIAL MEDIA EDITOR ================== */}
+          <div className="space-y-4 rounded-md border p-4">
+            <Label className="text-base font-semibold">
+              Social Media Links
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              Add links to your social media profiles. These will appear in the
+              contact section and the footer.
+            </p>
+            {content.contact.socialMediaLinks.map((link, index) => (
+              <div key={index} className="space-y-3 rounded-lg border p-3">
+                <div className="flex justify-end">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() =>
+                      handleRemoveItem("contact", "socialMediaLinks", index)
+                    }
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-xs">Social Platform</Label>
+                    <Select
+                      value={link.icon}
+                      onValueChange={(v) =>
+                        handleArrayObjectChange(
+                          "contact",
+                          "socialMediaLinks",
+                          index,
+                          "icon",
+                          v
+                        )
+                      }
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a platform" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {socialMediaIcons.map((i) => (
+                          <SelectItem key={i} value={i}>
+                            {i}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor={`socialUrl${index}`} className="text-xs">
+                      Profile URL
+                    </Label>
+                    <Input
+                      id={`socialUrl${index}`}
+                      value={link.url}
+                      placeholder="https://instagram.com/your-profile"
+                      onChange={(e) =>
+                        handleArrayObjectChange(
+                          "contact",
+                          "socialMediaLinks",
+                          index,
+                          "url",
+                          e.target.value
+                        )
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            ))}
+            <Button
+              variant="outline"
+              size="sm"
+              className="mt-4"
+              onClick={() =>
+                handleAddItem("contact", "socialMediaLinks", {
+                  icon: "Instagram",
+                  url: "",
+                })
+              }
+            >
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Add Social Link
             </Button>
           </div>
         </CardContent>

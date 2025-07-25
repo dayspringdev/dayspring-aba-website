@@ -6,6 +6,12 @@
 // 2. The frontend components (as the shape of their props).
 // 3. The admin content editor (as the shape of its state).
 
+// NEW: Add type for a single social media link
+export interface SocialMediaLink {
+  icon: string; // The name of the lucide-react icon, e.g., "Instagram", "Facebook"
+  url: string;
+}
+
 export interface HomePageData {
   hero: {
     headline: {
@@ -92,5 +98,7 @@ export interface HomePageData {
       description: string;
       subtext: string;
     }[];
+    // NEW: Add a list for social media links
+    socialMediaLinks: SocialMediaLink[];
   };
 }

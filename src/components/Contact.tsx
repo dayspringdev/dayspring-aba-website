@@ -13,6 +13,9 @@ import {
   MapPin,
   Send,
   Instagram,
+  Facebook,
+  Linkedin,
+  Twitter,
   CheckCircle,
 } from "lucide-react";
 import { AnimatedSection } from "./AnimatedSection";
@@ -39,6 +42,14 @@ const contactIcons = {
   },
 };
 
+// NEW: Add map for social icons
+const socialIcons = {
+  Instagram: Instagram,
+  Facebook: Facebook,
+  Linkedin: Linkedin,
+  Twitter: Twitter,
+};
+
 // Define the component's props
 interface ContactProps {
   data: HomePageData["contact"];
@@ -50,8 +61,7 @@ const ConfirmationMessage = ({ onReset }: { onReset: () => void }) => (
     <CheckCircle className="h-16 w-16 text-primary" />
     <h2 className="text-2xl font-bold">Thank You!</h2>
     <p className="text-muted-foreground">
-      Your message has been sent successfully. We&apos;ll get back to you
-      shortly.
+      Your message has been sent successfully. We&apos;ll get back to you shortly.
     </p>
     <Button
       onClick={onReset}
@@ -122,26 +132,49 @@ const Contact = ({ data }: ContactProps) => {
                       );
                     })}
                   </div>
+                  {/* ============== MODIFIED SOCIAL LINKS SECTION ============== */}
                   <div className="mt-8 pt-6 border-t border-border/50">
                     <h4 className="font-semibold text-foreground mb-3">
                       Follow Our Journey
                     </h4>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
-                        <Instagram className="text-foreground" size={18} />
+                    {data.socialMediaLinks &&
+                    data.socialMediaLinks.length > 0 ? (
+                      <div className="flex items-center space-x-3">
+                        {data.socialMediaLinks.map((link) => {
+                          const IconComponent =
+                            socialIcons[link.icon as keyof typeof socialIcons];
+                          if (!IconComponent) return null;
+                          return (
+                            <a
+                              key={link.icon}
+                              href={link.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              aria-label={`Follow us on ${link.icon}`}
+                              className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center text-foreground hover:bg-accent transition-colors"
+                            >
+                              <IconComponent size={18} />
+                            </a>
+                          );
+                        })}
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">
-                          Instagram coming soon!
-                        </p>
+                    ) : (
+                      <div className="flex items-center space-x-3">
+                        <div className="w-10 h-10 bg-muted rounded-lg flex items-center justify-center">
+                          <Instagram className="text-foreground/50" size={18} />
+                        </div>
+                        <div>
+                          <p className="text-sm text-muted-foreground">
+                            Social media coming soon!
+                          </p>
+                        </div>
                       </div>
-                    </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
             </div>
             {/* Contact Form */}
-            {/* 5. ADD Conditional Rendering for Form/Confirmation */}
             <Card className="bg-card/80 backdrop-blur-sm border border-border/50 shadow-gentle">
               {isSubmitted ? (
                 <ConfirmationMessage onReset={() => setIsSubmitted(false)} />
@@ -150,7 +183,6 @@ const Contact = ({ data }: ContactProps) => {
                   <h3 className="text-2xl font-bold text-foreground mb-6">
                     Send Us a Message
                   </h3>
-                  {/* 6. UPDATE Form with new fields and logic */}
                   <form className="space-y-6" onSubmit={handleFormSubmit}>
                     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
                       <div className="space-y-2">

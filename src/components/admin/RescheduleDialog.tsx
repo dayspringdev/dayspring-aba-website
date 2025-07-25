@@ -11,9 +11,20 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Calendar } from "@/components/ui/calendar";
-import { format, parseISO, startOfDay, addDays, isPast } from "date-fns";
+import {
+  format,
+  parseISO,
+  startOfDay,
+  addDays,
+  isPast,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+} from "date-fns";
 import { toast } from "sonner";
 import type { Database } from "@/types/supabase";
+import { CalendarSkeleton } from "@/components/CalendarSkeleton";
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 
@@ -34,8 +45,10 @@ export function RescheduleDialog({
   const [availableTimes, setAvailableTimes] = useState<string[]>([]);
   const [isLoadingTimes, setIsLoadingTimes] = useState(false);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
+  const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
+  const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
 
-  // Effect to fetch available times when a new date is selected
   useEffect(() => {
     if (selectedDate) {
       setIsLoadingTimes(true);
@@ -53,22 +66,40 @@ export function RescheduleDialog({
     }
   }, [selectedDate]);
 
-  // Set initial date when the dialog opens
+  useEffect(() => {
+    if (open) {
+      setIsLoadingAvailability(true);
+      setUnavailableDates([]);
+      const firstDayOfMonth = startOfMonth(currentMonth);
+      const lastDayOfMonth = endOfMonth(currentMonth);
+      const firstDayToFetch = startOfWeek(firstDayOfMonth);
+      const lastDayToFetch = endOfWeek(lastDayOfMonth);
+      const startParam = firstDayToFetch.toISOString();
+      const endParam = lastDayToFetch.toISOString();
+
+      fetch(`/api/availability?start=${startParam}&end=${endParam}`)
+        .then((res) => res.json())
+        .then((dates: string[]) => {
+          const unavailable = dates.map((d) => startOfDay(parseISO(d)));
+          setUnavailableDates(unavailable);
+        })
+        .catch(() => toast.error("Failed to load calendar availability."))
+        .finally(() => setIsLoadingAvailability(false));
+    }
+  }, [currentMonth, open]);
+
   useEffect(() => {
     if (open && booking) {
-      // When the dialog opens, check the original booking's date
       const originalDate = startOfDay(new Date(booking.slot_time));
-
-      // If the original booking date is in the past...
       if (isPast(originalDate)) {
-        // ...default to tomorrow.
-        setSelectedDate(addDays(new Date(), 1));
+        const tomorrow = addDays(new Date(), 1);
+        setSelectedDate(tomorrow);
+        setCurrentMonth(startOfMonth(tomorrow));
       } else {
-        // ...otherwise, default to the original date.
         setSelectedDate(originalDate);
+        setCurrentMonth(startOfMonth(originalDate));
       }
     } else {
-      // When it closes, clear everything out
       setSelectedDate(undefined);
       setAvailableTimes([]);
       setSelectedTime(null);
@@ -77,29 +108,36 @@ export function RescheduleDialog({
 
   const handleConfirmReschedule = async () => {
     if (!booking || !selectedTime) return;
-
     const promise = fetch(`/api/admin/bookings/${booking.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ newSlotTime: selectedTime }),
     }).then((res) => {
       if (!res.ok) {
-        // Try to get a more specific error message from the API
         return res.json().then((err) => {
           throw new Error(err.error || "Failed to reschedule.");
         });
       }
       return res.json();
     });
-
     toast.promise(promise, {
       loading: "Rescheduling appointment...",
       success: () => {
         onRescheduled();
         return "Appointment rescheduled successfully!";
       },
-      error: (err) => err.message, // Display the specific error message
+      error: (err) => err.message,
     });
+  };
+
+  const isDateDisabled = (date: Date) => {
+    if (isLoadingAvailability) return true;
+    const today = startOfDay(new Date());
+    if (date < today) return true;
+    return unavailableDates.some(
+      (unavailableDate) =>
+        unavailableDate.getTime() === startOfDay(date).getTime()
+    );
   };
 
   if (!booking) return null;
@@ -116,28 +154,38 @@ export function RescheduleDialog({
         </DialogHeader>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
           <div className="flex justify-center">
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              disabled={(date) => date < startOfDay(new Date())}
-            />
+            {isLoadingAvailability ? (
+              <CalendarSkeleton />
+            ) : (
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={setSelectedDate}
+                month={currentMonth}
+                onMonthChange={setCurrentMonth}
+                disabled={isDateDisabled}
+                modifiers={{ unavailable: unavailableDates }}
+                modifiersClassNames={{
+                  unavailable: "text-foreground/60 line-through",
+                }}
+              />
+            )}
           </div>
           <div className="space-y-2">
             <p className="text-sm font-medium">
               Available Times for{" "}
               {selectedDate ? format(selectedDate, "PPP") : "a selected date"}
             </p>
-            <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-2">
+            <div className="flex gap-2 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-x-visible md:pb-0">
               {isLoadingTimes && (
-                <p className="col-span-3 text-sm text-muted-foreground animate-pulse">
+                <p className="w-full text-sm text-muted-foreground animate-pulse md:col-span-3">
                   Loading...
                 </p>
               )}
               {!isLoadingTimes &&
                 availableTimes.length === 0 &&
                 selectedDate && (
-                  <p className="col-span-3 text-sm text-muted-foreground">
+                  <p className="w-full text-sm text-muted-foreground md:col-span-3">
                     No available slots.
                   </p>
                 )}
@@ -146,6 +194,7 @@ export function RescheduleDialog({
                   key={time}
                   variant={selectedTime === time ? "default" : "outline"}
                   onClick={() => setSelectedTime(time)}
+                  className="flex-shrink-0"
                 >
                   {format(parseISO(time), "p")}
                 </Button>

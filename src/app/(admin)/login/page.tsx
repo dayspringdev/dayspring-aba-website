@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner"; // <-- For showing error toasts
 import { createClient } from "@/lib/supabase/client";
+import { Eye, EyeOff } from "lucide-react"; // 1. Import the icons
 
 export default function LoginPage() {
   const supabase = createClient();
@@ -23,6 +24,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false); // 2. Manage password visibility state
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -73,13 +75,32 @@ export default function LoginPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              {/* === Password Input with Icon === */}
+              <div className="relative">
+                <Input
+                  id="password"
+                  // 3. Dynamically set the `type` attribute
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-10" // Add padding to the right for the icon
+                />
+                {/* 4. Button to toggle password visibility */}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute inset-y-0 right-0 h-full w-10 text-muted-foreground hover:bg-transparent"
+                  onClick={() => setShowPassword((prev) => !prev)} // 5. Toggle visibility
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </div>
           </CardContent>
           <CardFooter className="flex flex-col gap-4">

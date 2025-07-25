@@ -13,8 +13,18 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { format, parseISO, startOfDay, addDays } from "date-fns";
+import {
+  format,
+  parseISO,
+  startOfDay,
+  addDays,
+  startOfMonth,
+  endOfMonth,
+  startOfWeek,
+  endOfWeek,
+} from "date-fns";
 import { toast } from "sonner";
+import { CalendarSkeleton } from "@/components/CalendarSkeleton";
 
 interface NewBookingDialogProps {
   open: boolean;
@@ -41,8 +51,14 @@ export function NewBookingDialog({
   const [isLoadingTimes, setIsLoadingTimes] = useState(false);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
 
-  // Effect to fetch available times
+  const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
+  const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
+  const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
+
+  // HOOK 1: Fetches available TIMES for a specific DAY when `selectedDate` changes.
+  // THIS WAS THE MISSING PIECE IN THE CODE YOU PROVIDED.
   useEffect(() => {
     if (selectedDate) {
       setIsLoadingTimes(true);
@@ -58,7 +74,30 @@ export function NewBookingDialog({
     }
   }, [selectedDate]);
 
-  // Reset all state when the dialog is closed or opened
+  // HOOK 2: Fetches UNAVAILABLE DATES for the entire MONTH for the skeleton and disabled dates.
+  useEffect(() => {
+    if (open) {
+      setIsLoadingAvailability(true);
+      setUnavailableDates([]);
+      const firstDayOfMonth = startOfMonth(currentMonth);
+      const lastDayOfMonth = endOfMonth(currentMonth);
+      const firstDayToFetch = startOfWeek(firstDayOfMonth);
+      const lastDayToFetch = endOfWeek(lastDayOfMonth);
+      const startParam = firstDayToFetch.toISOString();
+      const endParam = lastDayToFetch.toISOString();
+
+      fetch(`/api/availability?start=${startParam}&end=${endParam}`)
+        .then((res) => res.json())
+        .then((dates: string[]) => {
+          const unavailable = dates.map((d) => startOfDay(parseISO(d)));
+          setUnavailableDates(unavailable);
+        })
+        .catch(() => toast.error("Failed to load calendar availability."))
+        .finally(() => setIsLoadingAvailability(false));
+    }
+  }, [currentMonth, open]);
+
+  // HOOK 3: Resets state when the dialog is opened or closed.
   useEffect(() => {
     if (!open) {
       setTimeout(() => {
@@ -67,30 +106,27 @@ export function NewBookingDialog({
         setSelectedDate(undefined);
         setAvailableTimes([]);
         setSelectedTime(null);
+        setEmailError(null);
       }, 300);
     } else {
-      // Pre-select a date if none is selected when opening
       if (!selectedDate) {
         const tomorrow = addDays(new Date(), 1);
         setSelectedDate(tomorrow);
       }
     }
-    // --- THIS IS THE FIX ---
-    // Add `selectedDate` to the dependency array. This makes the effect
-    // correctly "listen" to changes in both `open` and `selectedDate`,
-    // ensuring the logic inside never runs with stale data. This also
-    // satisfies the ESLint rule.
   }, [open, selectedDate]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
+    if (id === "email" && emailError) {
+      setEmailError(null);
+    }
   };
 
   const handleSubmit = async () => {
     if (!selectedTime) return;
     setIsSubmitting(true);
-
     const promise = fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -105,7 +141,6 @@ export function NewBookingDialog({
       }
       return res.json();
     });
-
     toast.promise(promise, {
       loading: "Creating appointment...",
       success: () => {
@@ -125,6 +160,12 @@ export function NewBookingDialog({
   };
 
   const proceedToTimeSelection = () => {
+    const emailRegex = /\S+@\S+\.\S+/;
+    if (!emailRegex.test(formData.email)) {
+      setEmailError("Please enter a valid email address.");
+      return;
+    }
+    setEmailError(null);
     if (!selectedDate) {
       const tomorrow = addDays(new Date(), 1);
       setSelectedDate(tomorrow);
@@ -132,78 +173,93 @@ export function NewBookingDialog({
     setStep(2);
   };
 
+  const isDateDisabled = (date: Date) => {
+    if (isLoadingAvailability) return true;
+    const today = startOfDay(new Date());
+    if (date < today) return true;
+    return unavailableDates.some(
+      (unavailableDate) =>
+        unavailableDate.getTime() === startOfDay(date).getTime()
+    );
+  };
+
   const renderStepContent = () => {
     switch (step) {
       case 1:
         return (
-          <div className="min-h-[340px] flex justify-center items-center">
-            <div className="w-full grid gap-4 py-4">
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="firstName" className="text-right">
-                  First Name
-                </Label>
+          <div className="py-4">
+            <div className="w-full space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
                 <Input
                   id="firstName"
                   value={formData.firstName}
                   onChange={handleInputChange}
-                  className="col-span-3"
                   required
                 />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="lastName" className="text-right">
-                  Last Name
-                </Label>
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
                 <Input
                   id="lastName"
                   value={formData.lastName}
                   onChange={handleInputChange}
-                  className="col-span-3"
                   required
                 />
               </div>
-              <div className="grid grid-cols-4 items-center gap-4">
-                <Label htmlFor="email" className="text-right">
-                  Email
-                </Label>
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
                 <Input
                   id="email"
                   type="email"
                   value={formData.email}
                   onChange={handleInputChange}
-                  className="col-span-3"
                   required
+                  className={emailError ? "border-destructive" : ""}
                 />
+                {emailError && (
+                  <p className="text-sm text-destructive">{emailError}</p>
+                )}
               </div>
             </div>
           </div>
         );
       case 2:
         return (
-          <div className="min-h-[340px] grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 py-4">
             <div className="flex justify-center items-center">
-              <Calendar
-                mode="single"
-                selected={selectedDate}
-                onSelect={setSelectedDate}
-                disabled={(date) => date < startOfDay(new Date())}
-              />
+              {isLoadingAvailability ? (
+                <CalendarSkeleton />
+              ) : (
+                <Calendar
+                  mode="single"
+                  selected={selectedDate}
+                  onSelect={setSelectedDate}
+                  month={currentMonth}
+                  onMonthChange={setCurrentMonth}
+                  disabled={isDateDisabled}
+                  modifiers={{ unavailable: unavailableDates }}
+                  modifiersClassNames={{
+                    unavailable: "text-foreground/60 line-through",
+                  }}
+                />
+              )}
             </div>
             <div className="space-y-2">
               <p className="text-sm font-medium">
                 Available Times for{" "}
                 {selectedDate ? format(selectedDate, "PPP") : "..."}
               </p>
-              <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto pr-2">
+              <div className="flex gap-2 overflow-x-auto pb-2 md:grid md:grid-cols-3 md:overflow-x-visible md:pb-0">
                 {isLoadingTimes && (
-                  <p className="col-span-3 text-sm text-muted-foreground animate-pulse">
+                  <p className="w-full text-sm text-muted-foreground animate-pulse md:col-span-3">
                     Loading...
                   </p>
                 )}
                 {!isLoadingTimes &&
                   availableTimes.length === 0 &&
                   selectedDate && (
-                    <p className="col-span-3 text-sm text-muted-foreground">
+                    <p className="w-full text-sm text-muted-foreground md:col-span-3">
                       No available slots.
                     </p>
                   )}
@@ -213,6 +269,7 @@ export function NewBookingDialog({
                     type="button"
                     variant={selectedTime === time ? "default" : "outline"}
                     onClick={() => setSelectedTime(time)}
+                    className="flex-shrink-0"
                   >
                     {format(parseISO(time), "p")}
                   </Button>
@@ -223,8 +280,8 @@ export function NewBookingDialog({
         );
       case 3:
         return (
-          <div className="min-h-[340px] flex justify-center items-center">
-            <div className="w-full space-y-4 py-4 text-sm">
+          <div className="flex justify-center items-center py-4">
+            <div className="w-full space-y-4 text-sm">
               <p>Please confirm the details for the new appointment:</p>
               <div className="space-y-2 rounded-md border p-4 border-muted/20">
                 <p>
@@ -236,7 +293,9 @@ export function NewBookingDialog({
                 </p>
                 <p>
                   <strong>Date:</strong>{" "}
-                  {selectedDate ? format(selectedDate, "PPPP") : "Not selected"}
+                  {selectedDate
+                    ? format(selectedDate, "EEEE, PPP")
+                    : "Not selected"}
                 </p>
                 <p>
                   <strong>Time:</strong>{" "}
@@ -313,7 +372,7 @@ export function NewBookingDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[625px] p-10">
+      <DialogContent className="sm:max-w-[625px] p-6 md:p-10">
         <DialogHeader>
           <DialogTitle>New Appointment</DialogTitle>
           <DialogDescription>

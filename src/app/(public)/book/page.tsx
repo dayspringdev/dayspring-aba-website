@@ -228,9 +228,10 @@ export default function BookPage() {
               <div className="text-sm">
                 {selectedDate && selectedTime ? (
                   <>
-                    You are selecting{" "}
+                    You are selecting {/* === HERE IS THE CHANGE === */}
+                    {/* Added 'EEEE' to the format string to include day of the week */}
                     <span className="font-medium">
-                      {format(selectedDate, "PPP")}
+                      {format(selectedDate, "EEEE, PPP")}
                     </span>{" "}
                     at{" "}
                     <span className="font-medium">

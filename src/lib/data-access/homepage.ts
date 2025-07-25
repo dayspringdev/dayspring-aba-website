@@ -13,7 +13,7 @@ import { cache } from "react";
  */
 export const getHomepageContent = cache(
   async (): Promise<HomePageData | null> => {
-    console.log("CACHE MISS: Hitting database for homepage content..."); // You'll see this in your server logs only ONCE per request
+    // console.log("CACHE MISS: Hitting database for homepage content..."); // You'll see this in your server logs only ONCE per request
 
     const { data, error } = await publicSupabase
       .from("homepage_content")

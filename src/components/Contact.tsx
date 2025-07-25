@@ -61,7 +61,8 @@ const ConfirmationMessage = ({ onReset }: { onReset: () => void }) => (
     <CheckCircle className="h-16 w-16 text-primary" />
     <h2 className="text-2xl font-bold">Thank You!</h2>
     <p className="text-muted-foreground">
-      Your message has been sent successfully. We&apos;ll get back to you shortly.
+      Your message has been sent successfully. We&apos;ll get back to you
+      shortly.
     </p>
     <Button
       onClick={onReset}

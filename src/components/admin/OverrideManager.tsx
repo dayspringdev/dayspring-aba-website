@@ -21,22 +21,18 @@ import type { Database } from "@/types/supabase";
 type Override = Database["public"]["Tables"]["availability_overrides"]["Row"];
 
 export function OverrideManager() {
-  // --- NEW STATE MANAGEMENT ---
-  const [persistedOverrides, setPersistedOverrides] = useState<Override[]>([]); // Data from DB
-  const [localOverrides, setLocalOverrides] = useState<Override[]>([]); // What's shown in the UI
-  const [idsToDelete, setIdsToDelete] = useState<Set<number>>(new Set()); // IDs marked for deletion
-  const [hasChanges, setHasChanges] = useState(false); // Controls the "Save" button
-
+  const [persistedOverrides, setPersistedOverrides] = useState<Override[]>([]);
+  const [localOverrides, setLocalOverrides] = useState<Override[]>([]);
+  const [idsToDelete, setIdsToDelete] = useState<Set<number>>(new Set());
+  const [hasChanges, setHasChanges] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-
   const [overrideDate, setOverrideDate] = useState<Date | undefined>(
     new Date()
   );
   const [blockFromTime, setBlockFromTime] = useState("09:00");
   const [blockToTime, setBlockToTime] = useState("12:00");
 
-  // Fetch initial data from the database
   const fetchOverrides = async () => {
     setIsLoading(true);
     try {
@@ -44,7 +40,7 @@ export function OverrideManager() {
       if (!response.ok) throw new Error("Could not load overrides");
       const data: Override[] = await response.json();
       setPersistedOverrides(data);
-      setLocalOverrides(data); // Initialize local state with DB state
+      setLocalOverrides(data);
     } catch {
       toast.error("Failed to fetch overrides", {
         description: "Could not load the list of blocked periods.",
@@ -58,27 +54,20 @@ export function OverrideManager() {
     fetchOverrides();
   }, []);
 
-  // Effect to check if there are any changes to save
   useEffect(() => {
     const persistedSet = new Set(persistedOverrides.map((o) => o.id));
-
-    // A change exists if an item was deleted or if a new (non-persisted) item was added.
     const hasDeletions = idsToDelete.size > 0;
     const hasAdditions = localOverrides.some((o) => !persistedSet.has(o.id));
-
     setHasChanges(hasDeletions || hasAdditions);
   }, [localOverrides, persistedOverrides, idsToDelete]);
 
   const addLocalOverride = (startTime: Date, endTime: Date) => {
-    // --- VALIDATION 1: Block times in the past ---
     if (isBefore(endTime, new Date())) {
       toast.warning("Invalid Time", {
         description: "Cannot block a time period that has already passed.",
       });
       return;
     }
-
-    // --- VALIDATION 2: Check for duplicate/overlapping overrides ---
     const isDuplicate = localOverrides.some(
       (o) =>
         isEqual(new Date(o.start_time), startTime) &&
@@ -90,15 +79,13 @@ export function OverrideManager() {
       });
       return;
     }
-
     const newOverride: Override = {
-      id: Date.now(), // Temporary client-side ID
+      id: Date.now(),
       created_at: new Date().toISOString(),
       start_time: startTime.toISOString(),
       end_time: endTime.toISOString(),
       type: "BLOCKED",
     };
-
     setLocalOverrides((prev) =>
       [...prev, newOverride].sort(
         (a, b) =>
@@ -111,14 +98,11 @@ export function OverrideManager() {
     if (!overrideDate) return;
     const from = blockFromTime.split(":").map(Number);
     const to = blockToTime.split(":").map(Number);
-
     const baseDate = startOfDay(overrideDate);
     const startTime = new Date(baseDate);
     startTime.setHours(from[0], from[1]);
-
     const endTime = new Date(baseDate);
     endTime.setHours(to[0], to[1]);
-
     addLocalOverride(startTime, endTime);
   };
 
@@ -129,8 +113,6 @@ export function OverrideManager() {
 
   const handleDeleteOverride = (idToDelete: number) => {
     setLocalOverrides((prev) => prev.filter((o) => o.id !== idToDelete));
-
-    // If the item was already in the database, mark its ID for deletion
     if (persistedOverrides.some((o) => o.id === idToDelete)) {
       setIdsToDelete((prev) => new Set(prev).add(idToDelete));
     }
@@ -138,16 +120,13 @@ export function OverrideManager() {
 
   const handleSaveChanges = async () => {
     setIsSaving(true);
-
-    // Separate new overrides from existing ones
     const overridesToAdd = localOverrides
       .filter((o) => !persistedOverrides.some((p) => p.id === o.id))
       .map(({ start_time, end_time }) => ({
         start_time,
         end_time,
         type: "BLOCKED",
-      })); // Shape for DB insert
-
+      }));
     const promise = fetch("/api/admin/availability/overrides/batch", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -158,12 +137,11 @@ export function OverrideManager() {
     }).then((res) => {
       if (!res.ok) throw new Error("Server failed to save changes.");
     });
-
     toast.promise(promise, {
       loading: "Saving changes...",
       success: () => {
-        fetchOverrides(); // Re-fetch the cannonical state from DB
-        setIdsToDelete(new Set()); // Reset deletion set
+        fetchOverrides();
+        setIdsToDelete(new Set());
         setHasChanges(false);
         return "Changes saved successfully!";
       },
@@ -182,7 +160,6 @@ export function OverrideManager() {
         </CardDescription>
       </CardHeader>
       <CardContent className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        {/* ... (Left column with calendar and inputs remains the same) ... */}
         <div className="space-y-6">
           <div className="flex justify-center">
             <Calendar
@@ -196,7 +173,8 @@ export function OverrideManager() {
           <div className="space-y-4 rounded-md border p-4">
             <h3 className="font-semibold">
               Block a Specific Period on{" "}
-              {overrideDate ? format(overrideDate, "PPP") : ""}
+              {/* === FIX 1: Add day of the week to the selected date title === */}
+              {overrideDate ? format(overrideDate, "EEEE, PPP") : ""}
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -234,7 +212,6 @@ export function OverrideManager() {
           </div>
         </div>
 
-        {/* --- Right Column with UI changes --- */}
         <div className="space-y-4">
           <h3 className="font-semibold">Upcoming Blocked Periods</h3>
           {isLoading ? (
@@ -248,7 +225,8 @@ export function OverrideManager() {
                 >
                   <div>
                     <p className="font-medium">
-                      {format(new Date(override.start_time), "PPP")}
+                      {/* === FIX 2: Add day of the week to the list items === */}
+                      {format(new Date(override.start_time), "EEEE, PPP")}
                     </p>
                     <p className="text-muted-foreground">
                       {format(new Date(override.start_time), "p")} -{" "}
@@ -273,7 +251,6 @@ export function OverrideManager() {
         </div>
       </CardContent>
 
-      {/* --- NEW FOOTER with Save Button --- */}
       <CardFooter className="flex-col items-stretch gap-4 border-t pt-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           {hasChanges && <AlertTriangle className="h-4 w-4 text-yellow-500" />}

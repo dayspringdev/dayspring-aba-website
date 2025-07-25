@@ -1,4 +1,4 @@
-// FILE: src/app/(public)/contact/intake/page.tsx
+// FILE: src/app/(public)/book/page.tsx
 "use client";
 
 import { useState, useEffect, useRef } from "react";
@@ -25,7 +25,8 @@ import { Calendar } from "@/components/ui/calendar";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CalendarSkeleton } from "@/components/CalendarSkeleton"; // 1. IMPORT the new skeleton
+import { CalendarSkeleton } from "@/components/CalendarSkeleton";
+import { toast } from "sonner"; // 1. IMPORT the toast component for better feedback
 
 export default function BookPage() {
   const [step, setStep] = useState(1);
@@ -48,20 +49,14 @@ export default function BookPage() {
   const timeListRef = useRef<HTMLDivElement>(null);
   const isAnythingLoading = isLoadingAvailability || isLoadingTimes;
 
-  // --- Fetch unavailable dates for the ENTIRE VISIBLE calendar grid ---
+  // --- (useEffect hooks remain the same) ---
   useEffect(() => {
     setIsLoadingAvailability(true);
-    // 3. CLEAR old data immediately to prevent flicker
     setUnavailableDates([]);
-
-    // --- CHANGE: Calculate the full visible date range ---
     const firstDayOfMonth = startOfMonth(currentMonth);
     const lastDayOfMonth = endOfMonth(currentMonth);
-    // Get the first day of the first week shown (a Sunday)
     const firstDayToFetch = startOfWeek(firstDayOfMonth);
-    // Get the last day of the last week shown (a Saturday)
     const lastDayToFetch = endOfWeek(lastDayOfMonth);
-
     const startParam = firstDayToFetch.toISOString();
     const endParam = lastDayToFetch.toISOString();
 
@@ -75,7 +70,6 @@ export default function BookPage() {
       .finally(() => setIsLoadingAvailability(false));
   }, [currentMonth]);
 
-  // Fetch available times when a date is selected (no change here)
   useEffect(() => {
     if (selectedDate) {
       setIsLoadingTimes(true);
@@ -94,7 +88,9 @@ export default function BookPage() {
         .finally(() => setIsLoadingTimes(false));
     }
   }, [selectedDate]);
+  // ---
 
+  // 2. UPDATE the booking submission handler
   const handleBookingSubmit = async () => {
     if (!selectedTime) return;
     setError(null);
@@ -107,15 +103,29 @@ export default function BookPage() {
           clientDetails: { ...formData },
         }),
       });
+      // The `if` block here correctly catches the 409 Conflict error
       if (!response.ok) {
         const { error } = await response.json();
         throw new Error(error || "Failed to create booking.");
       }
       setStep(4);
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "An unknown error occurred."
-      );
+      // THIS IS THE FIX: Provide clear feedback and reset the state
+      const errorMessage =
+        err instanceof Error ? err.message : "An unknown error occurred.";
+
+      // Use a toast notification to clearly inform the user
+      toast.error("Booking Failed", {
+        description: `${errorMessage} Please choose a different time.`,
+        duration: 6000, // Give them time to read it
+      });
+
+      // Send the user back to the time selection step
+      setStep(1);
+      // Clear the invalid time slot they previously selected
+      setSelectedTime(null);
+      // Optional: Clear available times to force a re-fetch if they select the same date
+      setAvailableTimes([]);
     }
   };
 
@@ -126,11 +136,8 @@ export default function BookPage() {
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
 
-  // 4. UPDATE isDateDisabled to be safe during loading
   const isDateDisabled = (date: Date) => {
-    // While loading, disable all dates to prevent interaction
     if (isLoadingAvailability) return true;
-
     const today = startOfDay(new Date());
     if (date < today) return true;
     return unavailableDates.some(
@@ -139,6 +146,7 @@ export default function BookPage() {
     );
   };
 
+  // The rest of the component (renderStepContent, etc.) remains the same
   const renderStepContent = () => {
     switch (step) {
       case 1:
@@ -162,7 +170,6 @@ export default function BookPage() {
             </CardHeader>
             <CardContent className="relative p-0 md:pr-48 flex justify-around">
               <div className="p-8 ">
-                {/* 5. ADD conditional rendering for the skeleton */}
                 {isLoadingAvailability ? (
                   <CalendarSkeleton />
                 ) : (
@@ -172,7 +179,7 @@ export default function BookPage() {
                     onSelect={setSelectedDate}
                     month={currentMonth}
                     onMonthChange={setCurrentMonth}
-                    disabled={isDateDisabled} // This now also uses isLoadingAvailability
+                    disabled={isDateDisabled}
                     modifiers={{ unavailable: unavailableDates }}
                     modifiersClassNames={{
                       unavailable: "text-foreground/60 line-through",
@@ -237,7 +244,6 @@ export default function BookPage() {
               </div>
               <Button
                 onClick={() => setStep(2)}
-                // 6. UPDATE the disabled logic
                 disabled={!selectedDate || !selectedTime || isAnythingLoading}
                 className="w-full md:ml-auto md:w-auto"
               >
@@ -247,7 +253,6 @@ export default function BookPage() {
           </Card>
         );
 
-      // Other cases (2, 3, 4) remain unchanged
       case 2:
         return (
           <Card className="w-full max-w-lg">

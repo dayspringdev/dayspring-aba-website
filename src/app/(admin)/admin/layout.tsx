@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import {
   CalendarCheck2,
   LayoutDashboard,
@@ -11,16 +11,14 @@ import {
   Edit,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { createClient } from "@/lib/supabase/client"; // <-- Import the new helper
+import { createClient } from "@/lib/supabase/client";
 
-// --- ADD SETTINGS LINK HERE ---
 const navLinks = [
   { href: "/admin", label: "Dashboard", icon: LayoutDashboard },
   { href: "/admin/availability", label: "Availability", icon: CalendarClock },
   { href: "/admin/bookings", label: "Bookings", icon: CalendarCheck2 },
-  { href: "/admin/content", label: "Page Content", icon: Edit }, // <-- NEW LINK
-  { href: "/admin/settings", label: "Settings", icon: Settings }, // <-- New Link
+  { href: "/admin/content", label: "Page Content", icon: Edit },
+  { href: "/admin/settings", label: "Settings", icon: Settings },
 ];
 
 export default function AdminLayout({
@@ -30,12 +28,10 @@ export default function AdminLayout({
 }) {
   const supabase = createClient();
   const pathname = usePathname();
-  const router = useRouter();
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    // After signing out, redirect to the login page
-    router.push("/");
+    window.location.href = "/";
   };
 
   return (
@@ -67,14 +63,16 @@ export default function AdminLayout({
           </nav>
         </div>
         <div>
-          <Button
-            variant="ghost"
+          {/* --- THIS IS THE CHANGE --- */}
+          {/* Replaced the <Button> component with a <button> element */}
+          {/* and applied the exact same classes as the nav links for visual consistency. */}
+          <button
             onClick={handleLogout}
-            className="w-full justify-start text-card-foreground/80 hover:bg-muted/50 hover:text-card-foreground"
+            className="flex w-full items-center gap-3 rounded-md px-6 py-3 text-sm font-medium text-card-foreground/80 transition-colors hover:bg-muted/10 hover:text-card-foreground"
           >
-            <LogOut className="mr-3 h-4 w-4" />
+            <LogOut className="h-4 w-4" />
             Log Out
-          </Button>
+          </button>
         </div>
       </aside>
       <main className="flex-1 overflow-auto bg-background/50 p-6 lg:p-8">

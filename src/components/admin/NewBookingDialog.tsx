@@ -85,6 +85,8 @@ export function NewBookingDialog({
   const handleSubmit = async () => {
     if (!selectedTime) return;
     setIsSubmitting(true);
+    
+    // Create a promise that intelligently handles the fetch response.
     const promise = fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -92,22 +94,41 @@ export function NewBookingDialog({
         slotTime: selectedTime,
         clientDetails: formData,
       }),
-    }).then((res) => {
-      if (!res.ok) throw new Error("Failed to create appointment.");
+    }).then(async (res) => {
+      // If the response is not successful (e.g., 409 Conflict)
+      if (!res.ok) {
+        // Parse the JSON body to get the specific error message from the API.
+        const errorData = await res.json();
+        // Throw an error with that specific message.
+        throw new Error(errorData.error || "Failed to create appointment.");
+      }
+      // If successful, return the JSON data as normal.
       return res.json();
     });
 
+    // Use toast.promise to handle the loading, success, and error states.
     toast.promise(promise, {
       loading: "Creating appointment...",
       success: () => {
-        onBookingCreated();
-        onOpenChange(false);
+        onBookingCreated(); // Refresh the booking list
+        onOpenChange(false); // Close the dialog
         return "Appointment created successfully!";
       },
-      error: (err) => err.message,
+      error: (err) => {
+        // If the specific race condition error occurs...
+        if (err.message.includes("no longer available")) {
+          // ...send the admin back to the time selection step.
+          setStep(2);
+          // ...and clear the invalid time they selected.
+          setSelectedTime(null); 
+        }
+        // Return the specific error message to be displayed in the toast.
+        return err.message;
+      },
       finally: () => setIsSubmitting(false),
     });
   };
+
 
   const proceedToTimeSelection = () => {
     // If a date hasn't already been picked, default to tomorrow.

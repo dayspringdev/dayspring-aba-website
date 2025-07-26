@@ -14,9 +14,9 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "sonner"; // <-- For showing error toasts
+import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { Eye, EyeOff } from "lucide-react"; // 1. Import the icons
+import { Eye, EyeOff, Loader2 } from "lucide-react"; // 1. Import Loader2
 
 export default function LoginPage() {
   const supabase = createClient();
@@ -24,29 +24,21 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false); // 2. Manage password visibility state
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setIsLoading(true);
-
-    // Use the Supabase client to sign in
     const { error } = await supabase.auth.signInWithPassword({
-      email: email,
-      password: password,
+      email,
+      password,
     });
-
+    // It's good practice to set loading to false even if there's an error.
     setIsLoading(false);
-
     if (error) {
-      // Show a user-friendly error toast
-      toast.error("Login Failed", {
-        description: error.message || "Invalid credentials. Please try again.",
-      });
+      toast.error("Login Failed", { description: error.message });
     } else {
-      // On successful login, Supabase automatically sets a session cookie.
-      // We just need to redirect the user to the admin dashboard.
-      // The old localStorage logic is no longer needed.
+      // router.push will handle navigation, no need to set isLoading to false again here.
       router.push("/admin");
     }
   };
@@ -61,7 +53,7 @@ export default function LoginPage() {
           </CardDescription>
         </CardHeader>
         <form onSubmit={handleLogin}>
-          <CardContent className="space-y-4 mb-4">
+          <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">Email</Label>
               <Input
@@ -74,25 +66,35 @@ export default function LoginPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              {/* === Password Input with Icon === */}
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="p-0 h-auto text-xs"
+                  onClick={async () => {
+                    await supabase.auth.signOut(); // This clears any stale session
+                    router.push("/forgot-password");
+                  }}
+                >
+                  Forgot password?
+                </Button>
+              </div>
               <div className="relative">
                 <Input
                   id="password"
-                  // 3. Dynamically set the `type` attribute
                   type={showPassword ? "text" : "password"}
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="pr-10" // Add padding to the right for the icon
+                  className="pr-10"
                 />
-                {/* 4. Button to toggle password visibility */}
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon"
                   className="absolute inset-y-0 right-0 h-full w-10 text-muted-foreground hover:bg-transparent"
-                  onClick={() => setShowPassword((prev) => !prev)} // 5. Toggle visibility
+                  onClick={() => setShowPassword((prev) => !prev)}
                 >
                   {showPassword ? (
                     <EyeOff className="h-4 w-4" />
@@ -103,9 +105,17 @@ export default function LoginPage() {
               </div>
             </div>
           </CardContent>
-          <CardFooter className="flex flex-col gap-4">
+          <CardFooter className="flex-col gap-4">
+            {/* 2. Update the button to show the spinner */}
             <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? "Signing In..." : "Sign In"}
+              {isLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Signing In...
+                </>
+              ) : (
+                "Sign In"
+              )}
             </Button>
             <Button variant="link" asChild className="text-xs">
               <Link href="/">← Go Back Home</Link>

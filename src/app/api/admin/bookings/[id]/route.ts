@@ -3,10 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import { getAvailableSlots } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { format, parseISO } from "date-fns";
-import { Resend } from "resend";
+import { sendEmail } from "@/lib/emails/send"; // <-- IMPORT our new service
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
+// The PATCH function handles status updates and rescheduling
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -42,52 +41,32 @@ export async function PATCH(
       );
     }
 
-    // Send email on CONFIRMATION
-    if (status === "confirmed" && updatedBooking) {
+    // Send email notification based on the new status
+    if (updatedBooking) {
+      const formattedDate = format(
+        new Date(updatedBooking.slot_time),
+        "EEEE, PPP 'at' p"
+      );
       try {
-        const formattedDate = format(
-          new Date(updatedBooking.slot_time),
-          "EEEE, PPP 'at' p"
-        );
-        await resend.emails.send({
-          from: "DBTS Booking <onboarding@resend.dev>",
-          to: updatedBooking.email,
-          subject: "Your Consultation is Confirmed!",
-          html: `
-            <div style="font-family: sans-serif; line-height: 1.6;">
-              <h2>Booking Confirmed</h2>
-              <p>Hi ${updatedBooking.first_name},</p>
-              <p>Great news! Your consultation with Dayspring Behavioural Therapeutic Services is confirmed for <strong>${formattedDate}</strong>.</p>
-              <p>We look forward to speaking with you. If you have any questions before then, please don't hesitate to reach out.</p>
-              <p>Sincerely,<br/>The Dayspring Team</p>
-            </div>
-          `,
-        });
+        if (status === "confirmed") {
+          await sendEmail("bookingConfirmed", {
+            to: updatedBooking.email,
+            data: {
+              firstName: updatedBooking.first_name,
+              formattedDate: formattedDate,
+            },
+          });
+        } else if (status === "cancelled") {
+          await sendEmail("bookingCancelled", {
+            to: updatedBooking.email,
+            data: {
+              firstName: updatedBooking.first_name,
+            },
+          });
+        }
       } catch (emailError) {
-        console.error("Failed to send confirmation email:", emailError);
-      }
-    }
-
-    // --- THIS IS THE NEW PART ---
-    // Send email on CANCELLATION
-    if (status === "cancelled" && updatedBooking) {
-      try {
-        await resend.emails.send({
-          from: "DBTS Booking <onboarding@resend.dev>",
-          to: updatedBooking.email,
-          subject: "Your Consultation Has Been Cancelled",
-          html: `
-            <div style="font-family: sans-serif; line-height: 1.6;">
-              <h2>Booking Cancelled</h2>
-              <p>Hi ${updatedBooking.first_name},</p>
-              <p>This is a notification that your consultation with Dayspring Behavioural Therapeutic Services has been cancelled.</p>
-              <p>If you believe this was in error, or if you would like to schedule a new time, please visit our booking page. We apologize for any inconvenience.</p>
-              <p>Sincerely,<br/>The Dayspring Team</p>
-            </div>
-          `,
-        });
-      } catch (emailError) {
-        console.error("Failed to send cancellation email:", emailError);
+        console.error("Failed to send status update email:", emailError);
+        // Don't block the API response if email fails
       }
     }
 
@@ -130,19 +109,12 @@ export async function PATCH(
           new Date(rescheduledBooking.slot_time),
           "EEEE, PPP 'at' p"
         );
-        await resend.emails.send({
-          from: "DBTS Booking <onboarding@resend.dev>",
+        await sendEmail("bookingRescheduled", {
           to: rescheduledBooking.email,
-          subject: "Your Consultation Has Been Rescheduled",
-          html: `
-            <div style="font-family: sans-serif; line-height: 1.6;">
-              <h2>Booking Rescheduled</h2>
-              <p>Hi ${rescheduledBooking.first_name},</p>
-              <p>Please note that your consultation with Dayspring Behavioural Therapeutic Services has been rescheduled to a new time: <strong>${formattedDate}</strong>.</p>
-              <p>This new time is confirmed. We look forward to speaking with you then.</p>
-              <p>Sincerely,<br/>The Dayspring Team</p>
-            </div>
-          `,
+          data: {
+            firstName: rescheduledBooking.first_name,
+            formattedDate: formattedDate,
+          },
         });
       } catch (emailError) {
         console.error("Failed to send reschedule email:", emailError);

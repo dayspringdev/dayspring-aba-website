@@ -28,43 +28,34 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
-  // --- DEBUG LOGGING ---
-  // Check your terminal where `npm run dev` is running for this output.
-  // console.log("--- MIDDLEWARE CHECK ---");
-  // console.log("PATH:", req.nextUrl.pathname);
-
   if (session) {
     const { data: claims } = await supabase.auth.getClaims();
-    // console.log("SESSION DETECTED. CLAIMS:", JSON.stringify(claims, null, 2));
-
-    // THE CRITICAL CHECK
     const amr = claims?.claims?.amr as { method: string }[] | undefined;
     const isRecovery = amr?.some((m) => m.method === "recovery") ?? false;
 
     if (isRecovery && req.nextUrl.pathname.startsWith("/admin")) {
-      // console.log("DECISION: Blocking access. User is in recovery mode.");
-      // console.log("----------------------\n");
       return NextResponse.redirect(new URL("/forgot-password", req.url));
     }
 
     if (!isRecovery && req.nextUrl.pathname.startsWith("/login")) {
-      // console.log(
-      //   "DECISION: Redirecting logged-in user from /login to /admin."
-      // );
-      // console.log("----------------------\n");
+      // --- THIS IS THE FIX ---
+      // Before redirecting, check if this is the special email confirmation redirect.
+      // If it is, allow the request to pass through so the toast can be displayed.
+      const message = req.nextUrl.searchParams.get("message");
+      if (message === "email-confirmed") {
+        return res; // Allow the request to continue to the login page
+      }
+      // --- END OF FIX ---
+
+      // Otherwise, for any other visit to /login by a logged-in user, redirect them.
       return NextResponse.redirect(new URL("/admin", req.url));
     }
   } else {
-    // console.log("SESSION: None");
     if (req.nextUrl.pathname.startsWith("/admin")) {
-      // console.log("DECISION: No session, redirecting to /login.");
-      // console.log("----------------------\n");
       return NextResponse.redirect(new URL("/login", req.url));
     }
   }
 
-  // console.log("DECISION: Allowing request.");
-  // console.log("----------------------\n");
   return res;
 }
 

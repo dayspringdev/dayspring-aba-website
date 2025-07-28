@@ -3,10 +3,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { parseISO } from "date-fns";
 import { getAvailableSlots } from "@/lib/db";
-import { formatInTimeZone } from "date-fns-tz"; // IMPORT THE NEW FUNCTION
+import { formatInTimeZone } from "date-fns-tz";
 import { createClient } from "@/lib/supabase/server";
-import { sendEmail } from "@/lib/emails/send"; // <-- IMPORT our new service
-import { TIMEZONE } from "@/lib/config"; // IMPORT our new constant
+import { sendEmail } from "@/lib/emails/send";
+import { TIMEZONE } from "@/lib/config";
 
 export async function POST(request: NextRequest) {
   const supabase = createClient();
@@ -72,6 +72,7 @@ export async function POST(request: NextRequest) {
       throw new Error("Could not create booking in the database.");
     }
 
+    // --- EMAIL LOGIC ---
     try {
       const { data: adminEmail, error: rpcError } =
         await supabase.rpc("get_admin_email");
@@ -88,8 +89,9 @@ export async function POST(request: NextRequest) {
 
       const emailPromises = [];
 
-      // Send confirmation to client ONLY if it's a public booking request.
+      // === THIS IS THE FIX: Send the correct email to the client based on status ===
       if (status === "pending") {
+        // This is for a public booking request. Send the "Request Received" email.
         emailPromises.push(
           sendEmail("bookingRequestUser", {
             to: clientDetails.email,
@@ -99,9 +101,21 @@ export async function POST(request: NextRequest) {
             },
           })
         );
+      } else if (status === "confirmed") {
+        // This is for an admin-created booking. Send the "Booking Confirmed" email.
+        emailPromises.push(
+          sendEmail("bookingConfirmed", {
+            to: clientDetails.email,
+            data: {
+              firstName: clientDetails.firstName,
+              formattedDate,
+            },
+          })
+        );
       }
+      // === END OF FIX ===
 
-      // Always send notification to admin.
+      // Always send a notification to the admin.
       emailPromises.push(
         sendEmail("adminNewBookingNotice", {
           to: adminEmail,

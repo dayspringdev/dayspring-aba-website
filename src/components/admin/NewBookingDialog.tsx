@@ -1,3 +1,5 @@
+// src/components/admin/NewBookingDialog.tsx
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -25,7 +27,13 @@ import {
 } from "date-fns";
 import { toast } from "sonner";
 import { CalendarSkeleton } from "@/components/CalendarSkeleton";
-import { Loader2 } from "lucide-react"; // 1. Import the Loader2 icon
+import { Loader2 } from "lucide-react";
+
+// === FIX 1: Define the type for a time slot object ===
+type TimeSlot = {
+  utc: string;
+  local: string;
+};
 
 interface NewBookingDialogProps {
   open: boolean;
@@ -48,9 +56,11 @@ export function NewBookingDialog({
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState(initialFormState);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
+  // === FIX 2: Update state to hold an array of TimeSlot objects ===
+  const [availableTimes, setAvailableTimes] = useState<TimeSlot[]>([]);
   const [isLoadingTimes, setIsLoadingTimes] = useState(false);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  // === FIX 3: Update state to hold a single TimeSlot object or null ===
+  const [selectedTime, setSelectedTime] = useState<TimeSlot | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailError, setEmailError] = useState<string | null>(null);
 
@@ -58,7 +68,7 @@ export function NewBookingDialog({
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
 
-  // All hooks and handlers remain the same...
+  // Correctly fetch time slots when the date changes
   useEffect(() => {
     if (selectedDate) {
       setIsLoadingTimes(true);
@@ -67,13 +77,15 @@ export function NewBookingDialog({
       const dateParam = startOfDay(selectedDate).toISOString();
       fetch(`/api/availability?date=${dateParam}`)
         .then((res) => res.json())
-        .then((data) => {
+        // === FIX 4: Correctly type the incoming data ===
+        .then((data: TimeSlot[]) => {
           if (Array.isArray(data)) setAvailableTimes(data);
         })
         .finally(() => setIsLoadingTimes(false));
     }
   }, [selectedDate]);
 
+  // Fetch month availability (no changes needed here)
   useEffect(() => {
     if (open) {
       setIsLoadingAvailability(true);
@@ -96,6 +108,7 @@ export function NewBookingDialog({
     }
   }, [currentMonth, open]);
 
+  // Reset state on close (no changes needed here)
   useEffect(() => {
     if (!open) {
       setTimeout(() => {
@@ -123,13 +136,14 @@ export function NewBookingDialog({
   };
 
   const handleSubmit = async () => {
-    if (!selectedTime) return;
+    // === FIX 5: Ensure we use the UTC time string for submission ===
+    if (!selectedTime?.utc) return;
     setIsSubmitting(true);
     const promise = fetch("/api/bookings", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        slotTime: selectedTime,
+        slotTime: selectedTime.utc,
         clientDetails: formData,
         bookedByAdmin: true,
       }),
@@ -183,7 +197,6 @@ export function NewBookingDialog({
   };
 
   const renderStepContent = () => {
-    // ... no changes here
     switch (step) {
       case 1:
         return (
@@ -263,15 +276,18 @@ export function NewBookingDialog({
                       No available slots.
                     </p>
                   )}
+                {/* === FIX 6: Update the mapping logic === */}
                 {availableTimes.map((time) => (
                   <Button
-                    key={time}
+                    key={time.utc}
                     type="button"
-                    variant={selectedTime === time ? "default" : "outline"}
+                    variant={
+                      selectedTime?.utc === time.utc ? "default" : "outline"
+                    }
                     onClick={() => setSelectedTime(time)}
                     className="flex-shrink-0"
                   >
-                    {format(parseISO(time), "p")}
+                    {time.local}
                   </Button>
                 ))}
               </div>
@@ -299,8 +315,9 @@ export function NewBookingDialog({
                 </p>
                 <p>
                   <strong>Time:</strong>{" "}
-                  {selectedTime
-                    ? format(parseISO(selectedTime), "p")
+                  {/* === FIX 7: Display the local time from the object === */}
+                  {selectedTime?.local
+                    ? `${selectedTime.local}`
                     : "Not selected"}
                 </p>
               </div>
@@ -315,7 +332,6 @@ export function NewBookingDialog({
   const renderFooter = () => {
     switch (step) {
       case 1:
-        // ... no changes here
         return (
           <DialogFooter>
             <Button
@@ -337,7 +353,6 @@ export function NewBookingDialog({
           </DialogFooter>
         );
       case 2:
-        // ... no changes here
         return (
           <DialogFooter className="sm:justify-between">
             <Button type="button" variant="outline" onClick={() => setStep(1)}>
@@ -358,7 +373,6 @@ export function NewBookingDialog({
             <Button type="button" variant="outline" onClick={() => setStep(2)}>
               Back
             </Button>
-            {/* --- THIS IS THE FIX --- */}
             <Button
               type="button"
               onClick={handleSubmit}
@@ -366,8 +380,8 @@ export function NewBookingDialog({
             >
               {isSubmitting ? (
                 <>
-                  Creating...
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Creating...
                 </>
               ) : (
                 "Confirm & Create"

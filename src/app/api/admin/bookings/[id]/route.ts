@@ -2,8 +2,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { getAvailableSlots } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
-import { format, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz"; // IMPORT THE NEW FUNCTION
 import { sendEmail } from "@/lib/emails/send"; // <-- IMPORT our new service
+import { TIMEZONE } from "@/lib/config"; // IMPORT our new constant
 
 // The PATCH function handles status updates and rescheduling
 export async function PATCH(
@@ -43,10 +45,12 @@ export async function PATCH(
 
     // Send email notification based on the new status
     if (updatedBooking) {
-      const formattedDate = format(
+      const formattedDate = formatInTimeZone(
         new Date(updatedBooking.slot_time),
-        "EEEE, PPP 'at' p"
+        TIMEZONE,
+        "EEEE, PPP 'at' p zzzz"
       );
+
       try {
         if (status === "confirmed") {
           await sendEmail("bookingConfirmed", {
@@ -105,10 +109,12 @@ export async function PATCH(
 
     if (rescheduledBooking) {
       try {
-        const formattedDate = format(
+        const formattedDate = formatInTimeZone(
           new Date(rescheduledBooking.slot_time),
-          "EEEE, PPP 'at' p"
+          TIMEZONE,
+          "EEEE, PPP 'at' p zzzz"
         );
+
         await sendEmail("bookingRescheduled", {
           to: rescheduledBooking.email,
           data: {

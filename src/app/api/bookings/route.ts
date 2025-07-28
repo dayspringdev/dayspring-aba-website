@@ -1,10 +1,12 @@
 // FILE: src/app/api/bookings/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { format, parseISO } from "date-fns";
+import { parseISO } from "date-fns";
 import { getAvailableSlots } from "@/lib/db";
+import { formatInTimeZone } from "date-fns-tz"; // IMPORT THE NEW FUNCTION
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/emails/send"; // <-- IMPORT our new service
+import { TIMEZONE } from "@/lib/config"; // IMPORT our new constant
 
 export async function POST(request: NextRequest) {
   const supabase = createClient();
@@ -78,7 +80,12 @@ export async function POST(request: NextRequest) {
         throw new Error(`Could not fetch admin email: ${rpcError?.message}`);
       }
 
-      const formattedDate = format(requestedSlot, "EEEE, PPP 'at' p");
+      const formattedDate = formatInTimeZone(
+        requestedSlot,
+        TIMEZONE,
+        "EEEE, PPP 'at' p zzzz"
+      );
+
       const emailPromises = [];
 
       // Send confirmation to client ONLY if it's a public booking request.

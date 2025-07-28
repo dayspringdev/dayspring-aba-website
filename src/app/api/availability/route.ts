@@ -4,8 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseISO, eachDayOfInterval, startOfDay } from "date-fns";
 import { getAvailableSlots } from "@/lib/db";
 import { publicSupabase } from "@/lib/supabase/public-server";
-import { formatInTimeZone } from "date-fns-tz"; // IMPORT
-import { TIMEZONE } from "@/lib/config"; // IMPORT
+import { formatInTimeZone } from "date-fns-tz";
+import { TIMEZONE } from "@/lib/config";
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -13,19 +13,15 @@ export async function GET(request: NextRequest) {
   const startParam = searchParams.get("start");
   const endParam = searchParams.get("end");
 
-  // --- LOGIC FOR A SINGLE DAY'S SLOTS (original functionality) ---
+  // --- LOGIC FOR A SINGLE DAY'S SLOTS (This part is correct and unchanged) ---
   if (dateParam) {
     try {
       const requestedDate = parseISO(dateParam);
       const slots = await getAvailableSlots(publicSupabase, requestedDate);
-      // return NextResponse.json(slots.map((s) => s.toISOString()));
-      // Return an object with both the UTC time and the formatted local time string.
-      const formattedSlots = slots.map((slot) => {
-        return {
-          utc: slot.toISOString(), // The universal time for submitting
-          local: formatInTimeZone(slot, TIMEZONE, "p"), // The display time, e.g., "8:30 AM"
-        };
-      });
+      const formattedSlots = slots.map((slot) => ({
+        utc: slot.toISOString(),
+        local: formatInTimeZone(slot, TIMEZONE, "p"),
+      }));
       return NextResponse.json(formattedSlots);
     } catch (error) {
       return NextResponse.json(
@@ -35,7 +31,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // --- NEW LOGIC FOR A DATE RANGE'S UNAVAILABILITY ---
+  // --- REVISED LOGIC FOR A DATE RANGE'S UNAVAILABILITY ---
   if (startParam && endParam) {
     try {
       const startDate = parseISO(startParam);
@@ -45,19 +41,34 @@ export async function GET(request: NextRequest) {
       const daysInInterval = eachDayOfInterval(interval);
       const today = startOfDay(new Date());
 
+      // Create an array of promises, one for each day, to call our new DB function.
       const availabilityChecks = daysInInterval.map(async (day) => {
-        // Treat past days as unavailable automatically
+        // Automatically mark past days as unavailable.
         if (day < today) {
-          return { date: day.toISOString(), isUnavailable: true };
+          return { date: day, isAvailable: false };
         }
-        const slots = await getAvailableSlots(publicSupabase, day);
-        return { date: day.toISOString(), isUnavailable: slots.length === 0 };
+
+        // Call the new, efficient database function.
+        const { data, error } = await publicSupabase.rpc(
+          "has_availability_rule_for_day",
+          { p_date: day.toISOString() }
+        );
+
+        if (error) {
+          console.error(`Error checking availability for ${day}:`, error);
+          return { date: day, isAvailable: false }; // Assume unavailable on error
+        }
+
+        return { date: day, isAvailable: data };
       });
 
       const results = await Promise.all(availabilityChecks);
+
+      // We return the dates that are UNAVAILABLE.
+      // A day is unavailable if our function returned `false`.
       const finalUnavailableDates = results
-        .filter((r) => r.isUnavailable)
-        .map((r) => r.date);
+        .filter((r) => !r.isAvailable)
+        .map((r) => r.date.toISOString());
 
       return NextResponse.json(finalUnavailableDates);
     } catch {
@@ -68,7 +79,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
-  // --- Fallback if neither condition is met ---
+  // Fallback if neither condition is met
   return NextResponse.json(
     {
       error: "A 'date' parameter or 'start' and 'end' parameters are required",

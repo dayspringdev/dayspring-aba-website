@@ -169,6 +169,10 @@ export type Database = {
         Args: Record<PropertyKey, never>
         Returns: string
       }
+      has_availability_rule_for_day: {
+        Args: { p_date: string }
+        Returns: boolean
+      }
     }
     Enums: {
       booking_status: "pending" | "confirmed" | "cancelled"

@@ -342,7 +342,7 @@ export default function BookPage() {
               <p>
                 <strong>Date & Time:</strong>{" "}
                 {selectedDate && selectedTime
-                  ? // 👇 Update this to show the correct local time and timezone
+                  ? // Update this to show the correct local time and timezone
                     `${format(selectedDate, "PPPP")} at ${selectedTime.local} Eastern Time`
                   : ""}
               </p>

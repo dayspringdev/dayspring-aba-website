@@ -2,6 +2,9 @@
 
 import { useState, useEffect } from "react";
 import { format, startOfDay, endOfDay, isBefore, isEqual } from "date-fns";
+import { toZonedTime, formatInTimeZone } from "date-fns-tz";
+import { TIMEZONE } from "@/lib/config";
+// 👆 ---
 import { Calendar } from "@/components/ui/calendar";
 import {
   Card,
@@ -31,8 +34,9 @@ export function OverrideManager() {
     new Date()
   );
   const [blockFromTime, setBlockFromTime] = useState("09:00");
-  const [blockToTime, setBlockToTime] = useState("12:00");
+  const [blockToTime, setBlockToTime] = useState("17:00"); // Changed default to 5 PM
 
+  // ... fetchOverrides, useEffects are the same ...
   const fetchOverrides = async () => {
     setIsLoading(true);
     try {
@@ -80,7 +84,7 @@ export function OverrideManager() {
       return;
     }
     const newOverride: Override = {
-      id: Date.now(),
+      id: Date.now(), // Temporary ID for local state
       created_at: new Date().toISOString(),
       start_time: startTime.toISOString(),
       end_time: endTime.toISOString(),
@@ -96,20 +100,35 @@ export function OverrideManager() {
 
   const handleBlockPeriod = () => {
     if (!overrideDate) return;
-    const from = blockFromTime.split(":").map(Number);
-    const to = blockToTime.split(":").map(Number);
-    const baseDate = startOfDay(overrideDate);
-    const startTime = new Date(baseDate);
-    startTime.setHours(from[0], from[1]);
-    const endTime = new Date(baseDate);
-    endTime.setHours(to[0], to[1]);
+
+    // Create a date object that represents the start of the day *in the Toronto timezone*
+    const zonedDate = toZonedTime(startOfDay(overrideDate), TIMEZONE);
+
+    const [startHour, startMinute] = blockFromTime.split(":").map(Number);
+    const [endHour, endMinute] = blockToTime.split(":").map(Number);
+
+    // Create the start and end Date objects by setting the hours and minutes on the zoned date
+    const startTime = new Date(zonedDate);
+    startTime.setHours(startHour, startMinute, 0, 0);
+
+    const endTime = new Date(zonedDate);
+    endTime.setHours(endHour, endMinute, 0, 0);
+
+    // The .toISOString() method will now produce the correct UTC time
     addLocalOverride(startTime, endTime);
   };
 
   const handleBlockEntireDay = () => {
     if (!overrideDate) return;
-    addLocalOverride(startOfDay(overrideDate), endOfDay(overrideDate));
+
+    // We need to calculate the start and end of the day *in the Toronto timezone*
+    const zonedDate = toZonedTime(startOfDay(overrideDate), TIMEZONE);
+    const dayStartInToronto = startOfDay(zonedDate);
+    const dayEndInToronto = endOfDay(zonedDate);
+
+    addLocalOverride(dayStartInToronto, dayEndInToronto);
   };
+  // 👆 --- END OF FIX FOR CREATING --- 👆
 
   const handleDeleteOverride = (idToDelete: number) => {
     setLocalOverrides((prev) => prev.filter((o) => o.id !== idToDelete));
@@ -225,12 +244,24 @@ export function OverrideManager() {
                 >
                   <div>
                     <p className="font-medium">
-                      {/* === FIX 2: Add day of the week to the list items === */}
-                      {format(new Date(override.start_time), "EEEE, PPP")}
+                      {formatInTimeZone(
+                        new Date(override.start_time),
+                        TIMEZONE,
+                        "EEEE, PPP"
+                      )}
                     </p>
                     <p className="text-muted-foreground">
-                      {format(new Date(override.start_time), "p")} -{" "}
-                      {format(new Date(override.end_time), "p")}
+                      {formatInTimeZone(
+                        new Date(override.start_time),
+                        TIMEZONE,
+                        "p"
+                      )}{" "}
+                      -{" "}
+                      {formatInTimeZone(
+                        new Date(override.end_time),
+                        TIMEZONE,
+                        "p"
+                      )}
                     </p>
                   </div>
                   <Button

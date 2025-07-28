@@ -2,6 +2,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { startOfToday } from "date-fns"; // 👈 IMPORT 'startOfToday'
 
 /**
  * @route   GET /api/admin/availability/overrides
@@ -9,12 +10,14 @@ import { createClient } from "@/lib/supabase/server";
  */
 export async function GET() {
   const supabase = createClient();
-  const today = new Date().toISOString();
+
+  //Get the very beginning of today (in UTC, which is what the server runs on).
+  const today = startOfToday().toISOString();
 
   const { data, error } = await supabase
     .from("availability_overrides")
     .select("*")
-    .gte("start_time", today) // Only get overrides from today onwards
+    .gte("start_time", today) // Only get overrides from the beginning of today onwards
     .order("start_time", { ascending: true });
 
   if (error) {

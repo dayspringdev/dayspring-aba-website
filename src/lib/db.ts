@@ -10,8 +10,11 @@ import {
   endOfDay,
   addMinutes, // Import the addMinutes function
 } from "date-fns";
+import { zonedTimeToUtc, format } from "date-fns-tz"; // 👈 IMPORT zonedTimeToUtc and format
+
 import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { TIMEZONE } from "./config"; // 👈 IMPORT our TIMEZONE constant
 
 export type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 export type RecurringRule =
@@ -76,9 +79,17 @@ export const getAvailableSlots = async (
     return [];
   }
 
-  const potentialSlots: Date[] = rule.available_slots.map((timeStr) =>
-    parse(timeStr, "HH:mm:ss", dayStart)
-  );
+  // Get the date part as a string (e.g., "2025-07-29")
+  const datePart = format(date, "yyyy-MM-dd");
+
+  // AFTER: This now correctly creates timezone-aware dates.
+  const potentialSlots: Date[] = rule.available_slots.map((timeStr) => {
+    // 1. Create a full string representing the LOCAL time, e.g., "2025-07-29T09:00:00"
+    const localDateTimeString = `${datePart}T${timeStr}`;
+    // 2. Tell the library to interpret this string as a time in the Toronto timezone
+    //    and convert it to a universal UTC Date object.
+    return zonedTimeToUtc(localDateTimeString, TIMEZONE);
+  });
 
   const availableSlots = potentialSlots.filter((slot) => {
     const isAfterLeadTime = slot > earliestBookingTime;

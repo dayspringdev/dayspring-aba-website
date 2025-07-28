@@ -32,9 +32,9 @@ export default function LoginPageClient() {
   useEffect(() => {
     const message = searchParams.get("message");
     if (message === "email-confirmed") {
-      toast.success("Email successfully updated!", {
-        description: "Please log in with your new email address.",
-      });
+      toast.success(
+        "Email successfully updated! Please log in with your new email address."
+      );
       // The router.replace is still useful to clean up the URL
       router.replace("/login", { scroll: false });
     }

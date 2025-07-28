@@ -23,11 +23,20 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
+  // This part is still correct: we construct the URL we want to send the user to.
+  const redirectUrl = new URL(request.url).origin;
+  const redirectTo = `${redirectUrl}/login?message=email-confirmed`;
+
   // Use the updateUser method to change the email.
-  // Supabase handles sending the verification emails.
-  const { error } = await supabase.auth.updateUser({
-    email: newEmail,
-  });
+  const { error } = await supabase.auth.updateUser(
+    {
+      email: newEmail,
+    },
+    {
+      // The correct property name for this operation is `emailRedirectTo`.
+      emailRedirectTo: redirectTo,
+    }
+  );
 
   if (error) {
     console.error("Email update error:", error);

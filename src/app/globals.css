@@ -182,8 +182,18 @@ h3 {
 /* ... (Sonner toast overrides are unchanged) ... */
 [data-sonner-toast][data-styled="true"][data-type="success"] {
   background-color: #28a745;
-  color: #ffffff;
+  /* We can keep this color rule as a fallback, but the new rules are what matter */
+  color: hsl(var(--primary-foreground));
 }
+
+/* Add these two new, more specific rules */
+[data-sonner-toast][data-type="success"] [data-title] {
+  color: hsl(var(--primary-foreground));
+}
+[data-sonner-toast][data-type="success"] [data-description] {
+  color: hsl(var(--primary-foreground));
+}
+
 [data-sonner-toast][data-styled="true"][data-type="warning"] {
   background-color: #ffc107;
   color: var(--muted);

@@ -27,6 +27,24 @@ export async function middleware(req: NextRequest) {
   const {
     data: { session },
   } = await supabase.auth.getSession();
+  
+  // --- THIS IS THE FINAL, COMPLETE FIX ---
+  // Check for the email confirmation message on the login page
+  if (req.nextUrl.pathname.startsWith("/login")) {
+    const message = req.nextUrl.searchParams.get("message");
+    if (message === "email-confirmed") {
+      // If the message exists, sign the user out immediately.
+      // The `signOut` method, when used with the SSR client,
+      // will automatically add the necessary `Set-Cookie` headers
+      // to the response to clear the auth tokens from the browser.
+      await supabase.auth.signOut();
+
+      // Then, allow the request to proceed to the login page.
+      // The browser will render the page AND clear the cookie simultaneously.
+      return res;
+    }
+  }
+  // --- END OF FIX ---
 
   if (session) {
     const { data: claims } = await supabase.auth.getClaims();
@@ -36,18 +54,9 @@ export async function middleware(req: NextRequest) {
     if (isRecovery && req.nextUrl.pathname.startsWith("/admin")) {
       return NextResponse.redirect(new URL("/forgot-password", req.url));
     }
-
+    
+    // This now only runs if the 'email-confirmed' message is NOT present
     if (!isRecovery && req.nextUrl.pathname.startsWith("/login")) {
-      // --- THIS IS THE FIX ---
-      // Before redirecting, check if this is the special email confirmation redirect.
-      // If it is, allow the request to pass through so the toast can be displayed.
-      const message = req.nextUrl.searchParams.get("message");
-      if (message === "email-confirmed") {
-        return res; // Allow the request to continue to the login page
-      }
-      // --- END OF FIX ---
-
-      // Otherwise, for any other visit to /login by a logged-in user, redirect them.
       return NextResponse.redirect(new URL("/admin", req.url));
     }
   } else {

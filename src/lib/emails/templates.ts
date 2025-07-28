@@ -18,35 +18,75 @@ const baseTemplate = (
 <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol'; background-color: #f8f9fa;">
   ${preheader ? `<span style="display: none !important; visibility: hidden; mso-hide: all; font-size: 1px; line-height: 1px; max-height: 0px; max-width: 0px; opacity: 0; overflow: hidden;">${preheader}</span>` : ""}
   <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f8f9fa;">
-    <tr>
-      <td align="center">
-        <table width="600" border="0" cellspacing="0" cellpadding="40" style="max-width: 600px; width: 100%; margin: 40px auto; background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 8px;">
-          <tr>
-            <td align="center" style="padding-bottom: 20px;">
-              <h1 style="font-size: 28px; font-weight: 700; color: #343a40; margin: 0;">Dayspring Behavioural</h1>
-              <p style="font-size: 14px; color: #868e96; margin: 4px 0 0;">THERAPEUTIC SERVICES</p>
-            </td>
-          </tr>
-          <tr>
-            <td>
-              <h2 style="font-size: 24px; font-weight: 600; color: #212529; margin-top: 0;">${title}</h2>
-              ${content}
-            </td>
-          </tr>
-          <tr>
-            <td align="center" style="padding-top: 20px; border-top: 1px solid #dee2e6;">
-              <p style="font-size: 12px; color: #adb5bd; margin: 0;">
-                © ${new Date().getFullYear()} Dayspring Behavioural Therapeutic Services. All Rights Reserved.
-              </p>
-              <p style="font-size: 12px; color: #adb5bd; margin: 4px 0 0;">
-                This is an automated email. Please do not reply.
-              </p>
-            </td>
-          </tr>
-        </table>
-      </td>
-    </tr>
-  </table>
+  <tr>
+    <td align="center">
+      <table width="600" border="0" cellspacing="0" cellpadding="40" style="max-width: 600px; width: 100%; margin: 40px auto; background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 8px;">
+        
+        <!-- ✅ REPLACED FLEX HEADER WITH TABLE-BASED LAYOUT -->
+        <tr>
+          <td align="center">
+            <table cellpadding="0" cellspacing="0" border="0" style="width: auto;">
+              <tr>
+                <!-- Logo Box -->
+                <td style="padding-right:12px;">
+                
+                  <table cellpadding="0" cellspacing="0" border="0" style="width: 50px; height: 50px; background-color: #ddd;">
+                    <tr>
+                      <td align="center" valign="middle">
+                        <!-- Centered content inside the box -->
+                        <div style="width: 30px; height: 30px;"></div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+
+                <!-- Text Block -->
+                <td style="vertical-align: top; text-align: left;">
+                  <h1 style="font-size: 24px; font-weight: bold; letter-spacing: 0.025em; color: #4b739b; margin: 0; line-height: 1.2;">
+                    <span style="display: block; line-height: 1;">Dayspring</span>
+                    <span style="display: block; line-height: 1;">Behavioural</span>
+                  </h1>
+                  <p style="font-size: 12px; letter-spacing: 0.2em; color: #627084; margin: 0; padding-top: 2px; line-height: 1;">
+                    THERAPEUTIC SERVICES
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+
+        <tr>
+          <td style="border-top-style: solid; border-top-color: #dee2e6; border-top-width: 1px; height: 34px; padding: 0; line-height: 34px; border-collapse: collapse;">
+          </td>
+        </tr>
+
+        <tr>
+          <td style="padding-top: 0; padding-bottom: 0;">
+            <h2 style="font-size: 24px; font-weight: 600; color: #212529; margin-top: 0;">${title}</h2>
+            ${content}
+          </td>
+        </tr>
+
+        <tr>
+          <td style="border-bottom-style: solid; border-bottom-color: #dee2e6; border-bottom-width: 1px; height: 34px; padding: 0; line-height: 34px; border-collapse: collapse;">
+          </td>
+        </tr>
+
+        <tr>
+          <td align="center" style="padding-top: 20px;">
+            <p style="font-size: 12px; color: #adb5bd; margin: 0;">
+              © ${new Date().getFullYear()} Dayspring Behavioural Therapeutic Services. All Rights Reserved.
+            </p>
+            <p style="font-size: 12px; color: #adb5bd; margin: 4px 0 0;">
+              This is an automated email. Please do not reply.
+            </p>
+          </td>
+        </tr>
+        
+      </table>
+    </td>
+  </tr>
+</table>
 </body>
 </html>
 `;

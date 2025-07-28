@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+// Make sure useSearchParams is imported from next/navigation
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,15 +17,29 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
-import { Eye, EyeOff, Loader2 } from "lucide-react"; // 1. Import Loader2
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 
 export default function LoginPage() {
   const supabase = createClient();
   const router = useRouter();
+  // Initialize searchParams here
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // This useEffect will now work correctly
+  useEffect(() => {
+    const message = searchParams.get("message");
+    if (message === "email-confirmed") {
+      toast.success("Email successfully updated!", {
+        description: "Please log in with your new email address.",
+      });
+      // Clean the URL so the message doesn't reappear on refresh
+      router.replace("/login", { scroll: false });
+    }
+  }, [searchParams, router]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -33,12 +48,10 @@ export default function LoginPage() {
       email,
       password,
     });
-    // It's good practice to set loading to false even if there's an error.
     setIsLoading(false);
     if (error) {
       toast.error("Login Failed", { description: error.message });
     } else {
-      // router.push will handle navigation, no need to set isLoading to false again here.
       router.push("/admin");
     }
   };
@@ -73,7 +86,7 @@ export default function LoginPage() {
                   variant="link"
                   className="p-0 h-auto text-xs"
                   onClick={async () => {
-                    await supabase.auth.signOut(); // This clears any stale session
+                    await supabase.auth.signOut();
                     router.push("/forgot-password");
                   }}
                 >
@@ -106,7 +119,6 @@ export default function LoginPage() {
             </div>
           </CardContent>
           <CardFooter className="flex-col gap-4">
-            {/* 2. Update the button to show the spinner */}
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading ? (
                 <>

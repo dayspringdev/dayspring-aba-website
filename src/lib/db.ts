@@ -9,7 +9,6 @@ import {
   addHours,
   endOfDay,
 } from "date-fns";
-// We only need this one function from date-fns-tz
 import { toZonedTime } from "date-fns-tz";
 import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -44,11 +43,15 @@ export const getAvailableSlots = async (
       .select("available_slots")
       .eq("day_of_week", dayOfWeek)
       .single(),
+
+    // === THIS IS THE FIX: The query logic is now correct for finding overlaps ===
     supabase
       .from("availability_overrides")
       .select("*")
-      .gte("start_time", dayStart.toISOString())
-      .lte("end_time", dayEnd.toISOString()),
+      .lte("start_time", dayEnd.toISOString()) // The override must start BEFORE the day ends
+      .gte("end_time", dayStart.toISOString()), // AND the override must end AFTER the day begins
+    // ===========================================================================
+
     supabase
       .from("bookings")
       .select("slot_time")
@@ -61,26 +64,31 @@ export const getAvailableSlots = async (
   const todaysOverrides: Override[] = overridesRes.data || [];
   const todaysBookings = bookingsRes.data || [];
 
-  if (!rule || !rule.available_slots || rule.available_slots.length === 0) {
+  // If there's an override that covers the whole day, we can stop early.
+  // This is an optimization.
+  const isDayFullyBlocked = todaysOverrides.some(
+    (override) =>
+      new Date(override.start_time) <= dayStart &&
+      new Date(override.end_time) >= dayEnd
+  );
+
+  if (
+    !rule ||
+    !rule.available_slots ||
+    rule.available_slots.length === 0 ||
+    isDayFullyBlocked
+  ) {
     return [];
   }
 
-  // --- THIS IS THE FINAL, SIMPLIFIED FIX ---
-  // 1. Get the timezone offset in milliseconds for the target timezone on the specific date.
-  //    This is the difference between a local time and UTC time.
   const timezoneOffset =
     new Date(date.toLocaleString("en-US", { timeZone: TIMEZONE })).getTime() -
     date.getTime();
 
   const potentialSlots: Date[] = rule.available_slots.map((timeStr) => {
-    // 2. Create a naive Date object by parsing the time string against the UTC start of the day.
     const naiveSlot = parse(timeStr, "HH:mm:ss", dayStart);
-
-    // 3. Create the correct UTC Date by subtracting the timezone offset.
-    //    e.g., (9:00 AM UTC) - (-4 hours in ms) = 1:00 PM UTC, which is 9 AM in Toronto.
     return new Date(naiveSlot.getTime() - timezoneOffset);
   });
-  // --- END OF FIX ---
 
   const isCheckingToday = isEqual(startOfDay(new Date()), startOfDay(date));
 
@@ -90,6 +98,8 @@ export const getAvailableSlots = async (
     const isBooked = todaysBookings.some((booking) =>
       isEqual(new Date(booking.slot_time), slot)
     );
+
+    // Now this check will correctly identify slots within the full-day block
     const isOverridden = todaysOverrides.some((override) =>
       isWithinInterval(slot, {
         start: new Date(override.start_time),

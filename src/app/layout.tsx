@@ -1,3 +1,5 @@
+// src/app/layout.tsx
+
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
@@ -9,38 +11,22 @@ const poppins = Poppins({
   display: "swap",
 });
 
+// THIS IS THE UPDATED METADATA OBJECT
 export const metadata: Metadata = {
   title: "DBTS - Dayspring Behavioural Therapeutic Services",
   description: "Compassionate, evidence-based therapy and behavioral services.",
+  manifest: "/site.webmanifest", // Links to the file in your /public folder
   icons: {
-    icon: [
-      {
-        rel: "icon",
-        url: "/favicon-16x16.png",
-        sizes: "16x16",
-        type: "image/png",
-      },
-      {
-        rel: "icon",
-        url: "/favicon-32x32.png",
-        sizes: "32x32",
-        type: "image/png",
-      },
-      { rel: "icon", url: "/favicon.ico" }, // fallback for older browsers
-    ],
-    apple: [
-      {
-        rel: "icon",
-        url: "/apple-touch-icon.png",
-        sizes: "180x180",
-        type: "image/png",
-      },
-    ],
+    // This points to the main icon file (the renamed 512x512 png)
+    icon: "/icon.png",
+    // This is the classic favicon for older browsers
+    shortcut: "/favicon.ico",
+    // This is the icon for Apple devices
+    apple: "/apple-icon.png",
   },
-  manifest: "/manifest.json",
 };
 
-// This is the one true Root Layout. It wraps every page.
+// The rest of the file is the same
 export default function RootLayout({
   children,
 }: Readonly<{

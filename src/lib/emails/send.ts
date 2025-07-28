@@ -28,8 +28,8 @@ export async function sendEmail<T extends EmailType>(
 
   const fromAddress =
     type.startsWith("admin") || type.startsWith("contactFormToBusiness")
-      ? "DBTS Website <onboarding@resend.dev>"
-      : "Dayspring BTS <onboarding@resend.dev>";
+      ? "DBTS Website <alerts@dayspringaba.ca>"
+      : "Dayspring BTS <no-reply@dayspringaba.ca>";
 
   try {
     // We are deliberately disabling the 'no-explicit-any' rule for these two

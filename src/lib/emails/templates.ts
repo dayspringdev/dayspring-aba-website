@@ -27,18 +27,20 @@ const baseTemplate = (
           <td align="center">
             <table cellpadding="0" cellspacing="0" border="0" style="width: auto;">
               <tr>
-                <!-- Logo Box -->
-                <td style="padding-right:12px;">
-                
-                  <table cellpadding="0" cellspacing="0" border="0" style="width: 50px; height: 50px; background-color: #ddd;">
-                    <tr>
-                      <td align="center" valign="middle">
-                        <!-- Centered content inside the box -->
-                        <div style="width: 30px; height: 30px;"></div>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
+              
+              <!-- Logo Box -->
+              <td style="padding-right:12px;">
+                  <!-- The link makes the logo clickable, leading to your homepage -->
+                  <a href="https://dayspringaba.ca" target="_blank">
+                      <img 
+                          src="https://dayspringaba.ca/email-logo.png" 
+                          alt="Dayspring Behavioural Logo" 
+                          width="50" 
+                          height="50" 
+                          style="display: block; border: 0;"
+                      />
+                  </a>
+              </td>
 
                 <!-- Text Block -->
                 <td style="vertical-align: top; text-align: left;">

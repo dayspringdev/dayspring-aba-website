@@ -35,6 +35,7 @@ export default function LoginPageClient() {
       // 1. Show the success message.
       toast.success("Email successfully updated!", {
         description: "Please log in with your new email address.",
+        descriptionClassName: "text-white",
       });
 
       // 2. THIS IS THE FIX: Immediately sign the user out.

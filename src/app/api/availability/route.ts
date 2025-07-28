@@ -7,6 +7,12 @@ import { publicSupabase } from "@/lib/supabase/public-server";
 import { formatInTimeZone } from "date-fns-tz";
 import { TIMEZONE } from "@/lib/config";
 
+// === THIS IS THE FIX ===
+// This tells Next.js and Vercel to treat this route as fully dynamic.
+// It will be executed on every request, ensuring fresh data.
+export const revalidate = 0;
+// ========================
+
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
   const dateParam = searchParams.get("date");

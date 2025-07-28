@@ -32,12 +32,19 @@ export default function LoginPageClient() {
   useEffect(() => {
     const message = searchParams.get("message");
     if (message === "email-confirmed") {
+      // 1. Show the success message.
       toast.success("Email successfully updated!", {
         description: "Please log in with your new email address.",
       });
+
+      // 2. THIS IS THE FIX: Immediately sign the user out.
+      // This clears the session cookie that Supabase automatically created.
+      supabase.auth.signOut();
+
+      // 3. Clean up the URL by removing the query parameter.
       router.replace("/login", { scroll: false });
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, supabase.auth]); // <-- Add supabase.auth to the dependency array
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

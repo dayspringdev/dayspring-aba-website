@@ -11,7 +11,6 @@ import {
   addMinutes,
   differenceInMinutes,
 } from "date-fns";
-// 👇 CORRECTED IMPORT: Use 'toZonedTime' instead of the non-existent 'utcToZonedTime'
 import { toZonedTime } from "date-fns-tz";
 import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -23,6 +22,15 @@ export type RecurringRule =
 export type Override =
   Database["public"]["Tables"]["availability_overrides"]["Row"];
 
+// 👇 THIS IS THE CORRECT, ROBUST HELPER FUNCTION 👇
+const getDayInToronto = (date: Date): number => {
+  // 1. Take the incoming UTC date.
+  // 2. Convert it to the correct date and time in the Toronto timezone.
+  const zonedDate = toZonedTime(date, TIMEZONE);
+  // 3. Get the day of the week *from that correctly zoned date*.
+  return getDay(zonedDate);
+};
+
 export const getAvailableSlots = async (
   supabase: SupabaseClient<Database>,
   date: Date
@@ -31,12 +39,13 @@ export const getAvailableSlots = async (
   const now = new Date();
   const earliestBookingTime = addHours(now, bookingLeadTimeHours);
 
-  // The server environment is UTC. getDay() will correctly return the UTC day of the week.
-  const dayOfWeek = getDay(date);
+  // 👇 USE THE NEW, CORRECT HELPER FUNCTION 👇
+  const dayOfWeek = getDayInToronto(date);
 
   const dayStart = startOfDay(date);
   const dayEnd = endOfDay(date);
 
+  // ... (the database queries are now guaranteed to get the correct day's rule)
   const [ruleRes, overridesRes, bookingsRes] = await Promise.all([
     supabase
       .from("recurring_availability_rules")
@@ -64,19 +73,12 @@ export const getAvailableSlots = async (
     return [];
   }
 
-  // --- THIS IS THE DEFINITIVE FIX USING THE CORRECT FUNCTION ---
-  // Convert the start of the requested day (which is in UTC) to the target timezone.
-  // 👇 CORRECTED FUNCTION NAME
+  // --- This logic is now correct because dayOfWeek was fetched correctly ---
   const zonedDayStart = toZonedTime(dayStart, TIMEZONE);
-
-  // Find the difference in minutes between the UTC start of the day and the zoned start of the day.
   const offsetMinutes = differenceInMinutes(zonedDayStart, dayStart);
 
   const potentialSlots: Date[] = rule.available_slots.map((timeStr) => {
-    // 1. Create a "naive" date by parsing the time string against the UTC start of the day.
     const naiveSlot = parse(timeStr, "HH:mm:ss", dayStart);
-
-    // 2. Correct the timezone by subtracting the offset we calculated.
     return addMinutes(naiveSlot, -offsetMinutes);
   });
   // --- END OF FIX ---

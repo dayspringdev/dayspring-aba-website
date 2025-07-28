@@ -2,40 +2,26 @@
 
 import {
   startOfDay,
-  getDay, // We will use getDay, but on a UTC-adjusted date
+  getDay,
   parse,
   isWithinInterval,
   isEqual,
   addHours,
   endOfDay,
-  addMinutes, // Import the addMinutes function
+  addMinutes,
+  differenceInMinutes,
 } from "date-fns";
-import { format } from "date-fns-tz"; // IMPORT zonedTimeToUtc and format
-
+// 👇 CORRECTED IMPORT: Use 'toZonedTime' instead of the non-existent 'utcToZonedTime'
+import { toZonedTime } from "date-fns-tz";
 import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { TIMEZONE } from "./config"; // IMPORT our TIMEZONE constant
+import { TIMEZONE } from "./config";
 
 export type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 export type RecurringRule =
   Database["public"]["Tables"]["recurring_availability_rules"]["Row"];
 export type Override =
   Database["public"]["Tables"]["availability_overrides"]["Row"];
-
-/**
- * CORRECTED HELPER: A helper function to get the day of the week in UTC.
- * This prevents timezone mismatches between the client and server.
- * @param date The local date from the client.
- * @returns The UTC day of the week (0 for Sunday, 1 for Monday, etc.).
- */
-const getUTCDay = (date: Date): number => {
-  // 1. Get the timezone offset in minutes from the provided date.
-  const timezoneOffset = date.getTimezoneOffset();
-  // 2. Create a new Date object that is adjusted to UTC by adding the offset.
-  const utcDate = addMinutes(date, timezoneOffset);
-  // 3. Get the day of the week from this new UTC-aligned date.
-  return getDay(utcDate);
-};
 
 export const getAvailableSlots = async (
   supabase: SupabaseClient<Database>,
@@ -45,8 +31,9 @@ export const getAvailableSlots = async (
   const now = new Date();
   const earliestBookingTime = addHours(now, bookingLeadTimeHours);
 
-  // Use our new, correct, UTC-safe helper function
-  const dayOfWeek = getUTCDay(date);
+  // The server environment is UTC. getDay() will correctly return the UTC day of the week.
+  const dayOfWeek = getDay(date);
+
   const dayStart = startOfDay(date);
   const dayEnd = endOfDay(date);
 
@@ -56,13 +43,11 @@ export const getAvailableSlots = async (
       .select("available_slots")
       .eq("day_of_week", dayOfWeek)
       .single(),
-
     supabase
       .from("availability_overrides")
       .select("*")
       .gte("start_time", dayStart.toISOString())
       .lte("end_time", dayEnd.toISOString()),
-
     supabase
       .from("bookings")
       .select("slot_time")
@@ -79,35 +64,22 @@ export const getAvailableSlots = async (
     return [];
   }
 
+  // --- THIS IS THE DEFINITIVE FIX USING THE CORRECT FUNCTION ---
+  // Convert the start of the requested day (which is in UTC) to the target timezone.
+  // 👇 CORRECTED FUNCTION NAME
+  const zonedDayStart = toZonedTime(dayStart, TIMEZONE);
 
-  // The logic is simpler. We create a Date object assuming the time is in the user's
-  // local timezone, and then we adjust it to be the correct UTC time as if that
-  // local time were actually in Toronto.
-
-  // Get the timezone offset for the Toronto timezone FOR THE SPECIFIC aPPOINTMENT DATE.
-  // This correctly handles Daylight Saving Time.
-  const torontoOffset = new Date(date)
-    .toLocaleString("en-US", {
-      timeZone: TIMEZONE,
-      timeZoneName: "shortOffset",
-    })
-    .split("UTC")[1]; // e.g., "-04:00"
+  // Find the difference in minutes between the UTC start of the day and the zoned start of the day.
+  const offsetMinutes = differenceInMinutes(zonedDayStart, dayStart);
 
   const potentialSlots: Date[] = rule.available_slots.map((timeStr) => {
-    // 1. Create a naive Date object by combining the selected date with the time string.
-    //    For example, if the user chose July 30 and the time is '09:00:00',
-    //    this creates a date for July 30, 9:00 AM *in the server's local timezone (UTC)*.
-    const naiveDate = parse(timeStr, "HH:mm:ss", date);
+    // 1. Create a "naive" date by parsing the time string against the UTC start of the day.
+    const naiveSlot = parse(timeStr, "HH:mm:ss", dayStart);
 
-    // 2. We now treat this naive date as if it were a Toronto time. We create an ISO
-    //    string that explicitly includes the Toronto timezone offset we calculated.
-    //    e.g., "2024-07-30T09:00:00.000-04:00"
-    const isoStringWithOffset = `${format(naiveDate, "yyyy-MM-dd'T'HH:mm:ss.SSS")}${torontoOffset}`;
-
-    // 3. Finally, create a new Date object from this correctly-offset string.
-    //    This will result in the correct UTC timestamp in the database.
-    return new Date(isoStringWithOffset);
+    // 2. Correct the timezone by subtracting the offset we calculated.
+    return addMinutes(naiveSlot, -offsetMinutes);
   });
+  // --- END OF FIX ---
 
   const availableSlots = potentialSlots.filter((slot) => {
     const isAfterLeadTime = slot > earliestBookingTime;

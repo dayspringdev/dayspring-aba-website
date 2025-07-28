@@ -13,25 +13,28 @@ export async function GET(request: NextRequest) {
   const startParam = searchParams.get("start");
   const endParam = searchParams.get("end");
 
-  // --- LOGIC FOR A SINGLE DAY'S SLOTS (This part is correct and unchanged) ---
+  // --- LOGIC FOR FETCHING SLOTS FOR A SINGLE, SPECIFIC DAY ---
   if (dateParam) {
     try {
       const requestedDate = parseISO(dateParam);
       const slots = await getAvailableSlots(publicSupabase, requestedDate);
+
+      // This part is correct: It returns the object { utc, local }
       const formattedSlots = slots.map((slot) => ({
         utc: slot.toISOString(),
         local: formatInTimeZone(slot, TIMEZONE, "p"),
       }));
       return NextResponse.json(formattedSlots);
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
       return NextResponse.json(
-        { error: `Invalid date format provided. Details ${error}` },
+        { error: `Invalid date format provided. Details: ${message}` },
         { status: 400 }
       );
     }
   }
 
-  // --- REVISED LOGIC FOR A DATE RANGE'S UNAVAILABILITY ---
+  // --- LOGIC FOR CHECKING WHICH DAYS IN A RANGE ARE UNAVAILABLE ---
   if (startParam && endParam) {
     try {
       const startDate = parseISO(startParam);
@@ -41,21 +44,23 @@ export async function GET(request: NextRequest) {
       const daysInInterval = eachDayOfInterval(interval);
       const today = startOfDay(new Date());
 
-      // Create an array of promises, one for each day, to call our new DB function.
       const availabilityChecks = daysInInterval.map(async (day) => {
-        // Automatically mark past days as unavailable.
+        // Automatically mark past days as having no availability.
         if (day < today) {
           return { date: day, isAvailable: false };
         }
 
-        // Call the new, efficient database function.
+        // Use our new, efficient database function to check for a rule.
         const { data, error } = await publicSupabase.rpc(
           "has_availability_rule_for_day",
           { p_date: day.toISOString() }
         );
 
         if (error) {
-          console.error(`Error checking availability for ${day}:`, error);
+          console.error(
+            `Error checking availability for ${day}:`,
+            error.message
+          );
           return { date: day, isAvailable: false }; // Assume unavailable on error
         }
 
@@ -64,25 +69,27 @@ export async function GET(request: NextRequest) {
 
       const results = await Promise.all(availabilityChecks);
 
-      // We return the dates that are UNAVAILABLE.
-      // A day is unavailable if our function returned `false`.
+      // The frontend expects a list of UNAVAILABLE dates.
+      // So, we filter for results where isAvailable is false.
       const finalUnavailableDates = results
-        .filter((r) => !r.isAvailable)
-        .map((r) => r.date.toISOString());
+        .filter((result) => !result.isAvailable)
+        .map((result) => result.date.toISOString());
 
       return NextResponse.json(finalUnavailableDates);
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown error";
       return NextResponse.json(
-        { error: "Invalid date format for range." },
+        { error: `Invalid date format for range. Details: ${message}` },
         { status: 400 }
       );
     }
   }
 
-  // Fallback if neither condition is met
+  // Fallback if the request is malformed
   return NextResponse.json(
     {
-      error: "A 'date' parameter or 'start' and 'end' parameters are required",
+      error:
+        "Request must include either a 'date' parameter or both 'start' and 'end' parameters.",
     },
     { status: 400 }
   );

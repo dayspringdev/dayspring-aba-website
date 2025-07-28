@@ -10,11 +10,11 @@ import {
   endOfDay,
   addMinutes, // Import the addMinutes function
 } from "date-fns";
-import { zonedTimeToUtc, format } from "date-fns-tz"; // 👈 IMPORT zonedTimeToUtc and format
+import { format } from "date-fns-tz"; // IMPORT zonedTimeToUtc and format
 
 import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { TIMEZONE } from "./config"; // 👈 IMPORT our TIMEZONE constant
+import { TIMEZONE } from "./config"; // IMPORT our TIMEZONE constant
 
 export type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 export type RecurringRule =
@@ -79,16 +79,34 @@ export const getAvailableSlots = async (
     return [];
   }
 
-  // Get the date part as a string (e.g., "2025-07-29")
-  const datePart = format(date, "yyyy-MM-dd");
 
-  // AFTER: This now correctly creates timezone-aware dates.
+  // The logic is simpler. We create a Date object assuming the time is in the user's
+  // local timezone, and then we adjust it to be the correct UTC time as if that
+  // local time were actually in Toronto.
+
+  // Get the timezone offset for the Toronto timezone FOR THE SPECIFIC aPPOINTMENT DATE.
+  // This correctly handles Daylight Saving Time.
+  const torontoOffset = new Date(date)
+    .toLocaleString("en-US", {
+      timeZone: TIMEZONE,
+      timeZoneName: "shortOffset",
+    })
+    .split("UTC")[1]; // e.g., "-04:00"
+
   const potentialSlots: Date[] = rule.available_slots.map((timeStr) => {
-    // 1. Create a full string representing the LOCAL time, e.g., "2025-07-29T09:00:00"
-    const localDateTimeString = `${datePart}T${timeStr}`;
-    // 2. Tell the library to interpret this string as a time in the Toronto timezone
-    //    and convert it to a universal UTC Date object.
-    return zonedTimeToUtc(localDateTimeString, TIMEZONE);
+    // 1. Create a naive Date object by combining the selected date with the time string.
+    //    For example, if the user chose July 30 and the time is '09:00:00',
+    //    this creates a date for July 30, 9:00 AM *in the server's local timezone (UTC)*.
+    const naiveDate = parse(timeStr, "HH:mm:ss", date);
+
+    // 2. We now treat this naive date as if it were a Toronto time. We create an ISO
+    //    string that explicitly includes the Toronto timezone offset we calculated.
+    //    e.g., "2024-07-30T09:00:00.000-04:00"
+    const isoStringWithOffset = `${format(naiveDate, "yyyy-MM-dd'T'HH:mm:ss.SSS")}${torontoOffset}`;
+
+    // 3. Finally, create a new Date object from this correctly-offset string.
+    //    This will result in the correct UTC timestamp in the database.
+    return new Date(isoStringWithOffset);
   });
 
   const availableSlots = potentialSlots.filter((slot) => {

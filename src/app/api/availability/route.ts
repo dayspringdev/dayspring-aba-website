@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseISO, eachDayOfInterval, startOfDay } from "date-fns";
 import { getAvailableSlots } from "@/lib/db";
 import { publicSupabase } from "@/lib/supabase/public-server";
+import { formatInTimeZone } from "date-fns-tz"; // IMPORT
+import { TIMEZONE } from "@/lib/config"; // IMPORT
 
 export async function GET(request: NextRequest) {
   const { searchParams } = request.nextUrl;
@@ -16,7 +18,15 @@ export async function GET(request: NextRequest) {
     try {
       const requestedDate = parseISO(dateParam);
       const slots = await getAvailableSlots(publicSupabase, requestedDate);
-      return NextResponse.json(slots.map((s) => s.toISOString()));
+      // return NextResponse.json(slots.map((s) => s.toISOString()));
+      // Return an object with both the UTC time and the formatted local time string.
+      const formattedSlots = slots.map((slot) => {
+        return {
+          utc: slot.toISOString(), // The universal time for submitting
+          local: formatInTimeZone(slot, TIMEZONE, "p"), // The display time, e.g., "8:30 AM"
+        };
+      });
+      return NextResponse.json(formattedSlots);
     } catch (error) {
       return NextResponse.json(
         { error: `Invalid date format provided. Details ${error}` },
@@ -50,7 +60,7 @@ export async function GET(request: NextRequest) {
         .map((r) => r.date);
 
       return NextResponse.json(finalUnavailableDates);
-    } catch (error) {
+    } catch {
       return NextResponse.json(
         { error: "Invalid date format for range." },
         { status: 400 }

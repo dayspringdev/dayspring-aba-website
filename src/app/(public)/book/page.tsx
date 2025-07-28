@@ -28,12 +28,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { CalendarSkeleton } from "@/components/CalendarSkeleton";
 import { toast } from "sonner"; // 1. IMPORT the toast component for better feedback
 
+// DEFINE A TYPE for our new slot object
+type TimeSlot = {
+  utc: string;
+  local: string;
+};
+
 export default function BookPage() {
   const [step, setStep] = useState(1);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
   const [isLoadingTimes, setIsLoadingTimes] = useState(false);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [availableTimes, setAvailableTimes] = useState<TimeSlot[]>([]); // Use the new type
+  const [selectedTime, setSelectedTime] = useState<TimeSlot | null>(null); // Use the new type
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -79,7 +85,7 @@ export default function BookPage() {
       const dateParam = startOfDay(selectedDate).toISOString();
       fetch(`/api/availability?date=${dateParam}`)
         .then((res) => res.json())
-        .then((data) => {
+        .then((data: TimeSlot[]) => {
           if (Array.isArray(data)) {
             setAvailableTimes(data);
           }
@@ -99,7 +105,8 @@ export default function BookPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          slotTime: selectedTime,
+          // SUBMIT the UTC time string
+          slotTime: selectedTime.utc,
           clientDetails: { ...formData },
         }),
       });
@@ -164,8 +171,11 @@ export default function BookPage() {
             <CardHeader className="pb-2 px-8 pt-6 border-b-1">
               <CardTitle>Step 1: Select a Date & Time</CardTitle>
               <CardDescription>
-                Choose a day and time for your consultation. Unavailable days
-                are crossed out.
+                Choose a day and time for your consultation.
+                <span className="font-semibold text-primary">
+                  {" "}
+                  All times are in Eastern Time (ET).
+                </span>
               </CardDescription>
             </CardHeader>
             <CardContent className="relative p-0 md:pr-48 flex justify-around">
@@ -213,12 +223,14 @@ export default function BookPage() {
                     )}
                   {availableTimes.map((time) => (
                     <Button
-                      key={time}
-                      variant={selectedTime === time ? "default" : "outline"}
+                      key={time.utc}
+                      variant={
+                        selectedTime?.utc === time.utc ? "default" : "outline"
+                      }
                       onClick={() => setSelectedTime(time)}
                       className="w-full shadow-none"
                     >
-                      {format(parseISO(time), "p")}
+                      {time.local}
                     </Button>
                   ))}
                 </div>
@@ -234,9 +246,7 @@ export default function BookPage() {
                       {format(selectedDate, "EEEE, PPP")}
                     </span>{" "}
                     at{" "}
-                    <span className="font-medium">
-                      {format(parseISO(selectedTime), "p")}
-                    </span>
+                    <span className="font-medium">{selectedTime.local} ET</span>
                     .
                   </>
                 ) : (
@@ -332,10 +342,8 @@ export default function BookPage() {
               <p>
                 <strong>Date & Time:</strong>{" "}
                 {selectedDate && selectedTime
-                  ? `${format(selectedDate, "PPPP")} at ${format(
-                      parseISO(selectedTime),
-                      "p"
-                    )}`
+                  ? // 👇 Update this to show the correct local time and timezone
+                    `${format(selectedDate, "PPPP")} at ${selectedTime.local} Eastern Time`
                   : ""}
               </p>
               <p>

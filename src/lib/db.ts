@@ -22,7 +22,8 @@ export type RecurringRule =
 export type Override =
   Database["public"]["Tables"]["availability_overrides"]["Row"];
 
-const getDayInToronto = (date: Date): number => {
+// 👇 CONVERTED FROM A CONST TO A STANDARD FUNCTION DECLARATION TO FIX THE TYPESCRIPT ERROR
+function getDayInToronto(date: Date): number {
   // --- START LOGGING ---
   console.log(`[getDayInToronto] Input UTC Date: ${date.toISOString()}`);
 
@@ -38,19 +39,21 @@ const getDayInToronto = (date: Date): number => {
   // --- END LOGGING ---
 
   return dayOfWeek;
-};
+}
 
 export const getAvailableSlots = async (
   supabase: SupabaseClient<Database>,
   date: Date
 ): Promise<Date[]> => {
-  // ... (rest of the function is the same, no more logs needed here)
   const bookingLeadTimeHours = 2;
   const now = new Date();
   const earliestBookingTime = addHours(now, bookingLeadTimeHours);
+
   const dayOfWeek = getDayInToronto(date);
+
   const dayStart = startOfDay(date);
   const dayEnd = endOfDay(date);
+
   const [ruleRes, overridesRes, bookingsRes] = await Promise.all([
     supabase
       .from("recurring_availability_rules")
@@ -69,18 +72,23 @@ export const getAvailableSlots = async (
       .lte("slot_time", dayEnd.toISOString())
       .in("status", ["pending", "confirmed"]),
   ]);
+
   const rule = ruleRes.data;
   const todaysOverrides = overridesRes.data || [];
   const todaysBookings = bookingsRes.data || [];
+
   if (!rule || !rule.available_slots || rule.available_slots.length === 0) {
     return [];
   }
+
   const zonedDayStart = toZonedTime(dayStart, TIMEZONE);
   const offsetMinutes = differenceInMinutes(zonedDayStart, dayStart);
+
   const potentialSlots: Date[] = rule.available_slots.map((timeStr) => {
     const naiveSlot = parse(timeStr, "HH:mm:ss", dayStart);
     return addMinutes(naiveSlot, -offsetMinutes);
   });
+
   const availableSlots = potentialSlots.filter((slot) => {
     const isAfterLeadTime = slot > earliestBookingTime;
     const isBooked = todaysBookings.some((booking) =>
@@ -94,5 +102,6 @@ export const getAvailableSlots = async (
     );
     return isAfterLeadTime && !isBooked && !isOverridden;
   });
+
   return availableSlots;
 };

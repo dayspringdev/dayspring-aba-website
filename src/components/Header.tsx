@@ -13,53 +13,31 @@ import { cn } from "@/lib/utils";
 
 // --- CREATE A REUSABLE NAVIGATION LINK COMPONENT ---
 // This component will decide whether to render a ScrollLink or a NextLink
+// --- THIS IS THE FIX: A simplified and SEO-friendly NavLink ---
 const NavLink = ({
   to,
   children,
+  onLinkClick,
 }: {
   to: string;
   children: React.ReactNode;
+  onLinkClick?: () => void;
 }) => {
-  const pathname = usePathname();
-  const isHomePage = pathname === "/";
-
-  // onClick handler for mobile menu to close it
-  const handleClick = () => {
-    const mobileMenuButton = document.querySelector(
-      '[aria-label="Toggle menu"]'
-    );
-    if (mobileMenuButton instanceof HTMLElement) {
-      mobileMenuButton.click();
-    }
-  };
-
-  if (isHomePage) {
-    // If we're on the homepage, use react-scroll for smooth scrolling
-    return (
-      <ScrollLink
-        to={to}
-        smooth={true}
-        duration={500}
-        offset={-96}
-        onClick={handleClick}
-        className="nav-link text-muted-foreground hover:text-primary tracking-tight font-thin ease-in-out cursor-pointer"
-      >
-        {children}
-      </ScrollLink>
-    );
-  } else {
-    // If we're on another page, use Next.js Link to navigate back to the homepage with a hash
-    return (
-      <NextLink
-        href={`/#${to}`}
-        className="nav-link text-muted-foreground hover:text-primary tracking-tight font-thin ease-in-out cursor-pointer"
-      >
-        {children}
-      </NextLink>
-    );
-  }
+  return (
+    <ScrollLink
+      to={to} // For react-scroll's JS scrolling
+      href={`/#${to}`} // For SEO and non-JS fallback
+      smooth={true}
+      duration={500}
+      offset={-96}
+      onClick={onLinkClick} // Used to close the mobile menu
+      className="nav-link text-muted-foreground hover:text-primary tracking-tight font-thin ease-in-out cursor-pointer"
+    >
+      {children}
+    </ScrollLink>
+  );
 };
-// --- END OF REUSABLE COMPONENT ---
+// --- END OF FIX ---
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);

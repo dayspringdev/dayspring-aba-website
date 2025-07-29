@@ -3,12 +3,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import NextLink from "next/link"; // Use NextLink for external pages
+import NextLink from "next/link"; // For the external /login link
 import { Mail, Instagram, Facebook, Linkedin, Twitter } from "lucide-react";
 import Image from "next/image";
 import type { SocialMediaLink } from "@/types/homepage";
-import { useRouter, usePathname } from "next/navigation"; // <-- ADD IMPORTS
-import { scroller, animateScroll } from "react-scroll"; // Import scroller and animateScroll
+import { Link as ScrollLink, animateScroll } from "react-scroll"; // <-- CORRECTLY IMPORT BOTH
 
 // A map to look up the correct icon component based on the string from the database.
 const socialIcons = {
@@ -20,8 +19,6 @@ const socialIcons = {
 
 export function Footer() {
   const [socialLinks, setSocialLinks] = useState<SocialMediaLink[]>([]);
-  const router = useRouter(); // <-- ADD router
-  const pathname = usePathname(); // <-- ADD pathname
 
   useEffect(() => {
     const fetchSocialLinks = async () => {
@@ -37,23 +34,7 @@ export function Footer() {
     fetchSocialLinks();
   }, []);
 
-  // Correctly scrolls to an element ID
-  const handleScrollTo = (targetId: string) => {
-    const isHomePage = pathname === "/";
-    if (isHomePage) {
-      // If on homepage, just scroll
-      scroller.scrollTo(targetId, {
-        smooth: true,
-        duration: 500,
-        offset: -96,
-      });
-    } else {
-      // If on another page, navigate with hash
-      router.push(`/#${targetId}`);
-    }
-  };
-
-  // Correctly scrolls to the top of the page
+  // Correctly scrolls to the top of the page using the imported animateScroll
   const handleScrollToTop = () => {
     animateScroll.scrollToTop({
       smooth: true,
@@ -98,38 +79,57 @@ export function Footer() {
               Navigation
             </h4>
             <ul className="mt-4 space-y-2">
+              {/* --- THIS IS THE FIX --- */}
+              {/* Each ScrollLink now has the essential 'href' attribute for SEO */}
               <li>
-                <button
-                  onClick={() => handleScrollTo("about")}
-                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out"
+                <ScrollLink
+                  to="about"
+                  href="/#about"
+                  smooth={true}
+                  duration={500}
+                  offset={-96}
+                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out cursor-pointer"
                 >
                   About
-                </button>
+                </ScrollLink>
               </li>
               <li>
-                <button
-                  onClick={() => handleScrollTo("services")}
-                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out"
+                <ScrollLink
+                  to="services"
+                  href="/#services"
+                  smooth={true}
+                  duration={500}
+                  offset={-96}
+                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out cursor-pointer"
                 >
                   Services
-                </button>
+                </ScrollLink>
               </li>
               <li>
-                <button
-                  onClick={() => handleScrollTo("faq")}
-                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out"
+                <ScrollLink
+                  to="faq"
+                  href="/#faq"
+                  smooth={true}
+                  duration={500}
+                  offset={-96}
+                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out cursor-pointer"
                 >
                   FAQ
-                </button>
+                </ScrollLink>
               </li>
               <li>
-                <button
-                  onClick={() => handleScrollTo("contact")}
-                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out"
+                <ScrollLink
+                  to="contact"
+                  href="/#contact"
+                  smooth={true}
+                  duration={500}
+                  offset={-96}
+                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out cursor-pointer"
                 >
                   Contact
-                </button>
+                </ScrollLink>
               </li>
+              {/* --- END OF FIX --- */}
             </ul>
           </div>
           <div>

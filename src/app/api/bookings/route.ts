@@ -89,7 +89,6 @@ export async function POST(request: NextRequest) {
 
       const emailPromises = [];
 
-      // === THIS IS THE FIX: Send the correct email to the client based on status ===
       if (status === "pending") {
         // This is for a public booking request. Send the "Request Received" email.
         emailPromises.push(
@@ -102,18 +101,25 @@ export async function POST(request: NextRequest) {
           })
         );
       } else if (status === "confirmed") {
+        // --- THIS IS THE FIX ---
         // This is for an admin-created booking. Send the "Booking Confirmed" email.
+        // We now provide all the data required by the BookingConfirmedData type.
         emailPromises.push(
           sendEmail("bookingConfirmed", {
-            to: clientDetails.email,
+            to: newBooking.email,
             data: {
-              firstName: clientDetails.firstName,
+              bookingId: newBooking.id,
+              firstName: newBooking.first_name,
+              lastName: newBooking.last_name,
+              email: newBooking.email,
+              slotTime: newBooking.slot_time,
+              notes: newBooking.notes,
               formattedDate,
             },
           })
         );
       }
-      // === END OF FIX ===
+      // --- END OF FIX ---
 
       // Always send a notification to the admin.
       emailPromises.push(
@@ -131,7 +137,6 @@ export async function POST(request: NextRequest) {
         })
       );
 
-      // Await all emails, but don't let a failed email stop the response.
       const results = await Promise.allSettled(emailPromises);
       results.forEach((result) => {
         if (result.status === "rejected") {

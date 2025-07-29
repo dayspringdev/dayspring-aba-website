@@ -27,6 +27,12 @@ import { RescheduleDialog } from "@/components/admin/RescheduleDialog";
 import { NewBookingDialog } from "@/components/admin/NewBookingDialog";
 import { CalendarPlus } from "lucide-react"; // <-- IMPORT the icon
 import { generateGoogleCalendarLink } from "@/lib/utils"; // <-- IMPORT our new helper
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
@@ -157,23 +163,31 @@ export default function BookingsPage() {
         updatingState?.action === "cancelling";
       return (
         <div className="flex flex-wrap gap-2 justify-end items-center">
-          {/* Google Calendar Button */}
-          <Button size="sm" variant="outline" asChild>
-            <a
-              href={generateGoogleCalendarLink(booking)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <CalendarPlus className="mr-2 h-4 w-4" /> Google
-            </a>
-          </Button>
-
-          {/* .ics File Download Button */}
-          <Button size="sm" variant="outline" asChild>
-            <a href={`/api/admin/bookings/${booking.id}/ics`}>
-              <CalendarPlus className="mr-2 h-4 w-4" /> Outlook/Other
-            </a>
-          </Button>
+          {/* DropDown menu for calendar links */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button size="sm" variant="outline">
+                <CalendarPlus className="mr-2 h-4 w-4" />
+                Add to Calendar
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <a
+                  href={generateGoogleCalendarLink(booking)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Google Calendar
+                </a>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild className="cursor-pointer">
+                <a href={`/api/admin/bookings/${booking.id}/ics`}>
+                  ICS File (Outlook, Apple)
+                </a>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <Button
             size="sm"

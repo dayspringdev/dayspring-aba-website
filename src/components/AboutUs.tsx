@@ -5,6 +5,7 @@ import { GraduationCap, Award, Heart } from "lucide-react";
 import Image from "next/image";
 import { AnimatedSection } from "./AnimatedSection";
 import type { HomePageData } from "@/types/homepage";
+import React from "react";
 
 // Define the component's props
 interface AboutUsProps {

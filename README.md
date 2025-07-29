@@ -11,7 +11,7 @@ The project is built with the Next.js App Router and utilizes Supabase for the d
 ### Public-Facing Website (`/`)
 
 - **Dynamic Homepage:** All content on the homepage is editable through the admin panel, including text, images, and contact information.
-- **Smooth Scrolling:** Implemented with `@studio-freight/lenis` for an enhanced user experience.
+- **Smooth Scrolling:** Implemented with `react-scroll` for an enhanced user experience.
 - **Online Booking System (`/book`):** A multi-step form allowing clients to book available consultation slots.
 - **Contact Form:** A functional contact form that sends inquiries to the business and an auto-reply to the user.
 - **Responsive Design:** The entire public site is designed to work seamlessly on desktop and mobile devices.

@@ -3,64 +3,68 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useLenis } from "@/context/LenisContext";
+import NextLink from "next/link"; // Use NextLink for external pages
 import { Mail, Instagram, Facebook, Linkedin, Twitter } from "lucide-react";
 import Image from "next/image";
 import type { SocialMediaLink } from "@/types/homepage";
+import { useRouter, usePathname } from "next/navigation"; // <-- ADD IMPORTS
+import { scroller, animateScroll } from "react-scroll"; // Import scroller and animateScroll
 
 // A map to look up the correct icon component based on the string from the database.
 const socialIcons = {
-  Instagram: Instagram,
-  Facebook: Facebook,
-  Linkedin: Linkedin,
-  Twitter: Twitter,
+  Instagram,
+  Facebook,
+  Linkedin,
+  Twitter,
 };
 
 export function Footer() {
   const [socialLinks, setSocialLinks] = useState<SocialMediaLink[]>([]);
-  const lenis = useLenis();
+  const router = useRouter(); // <-- ADD router
+  const pathname = usePathname(); // <-- ADD pathname
 
-  // This useEffect hook runs once when the component mounts in the user's browser.
   useEffect(() => {
-    // We define an async function to fetch data from our lightweight API route.
     const fetchSocialLinks = async () => {
       try {
         const response = await fetch("/api/social-links");
-        if (!response.ok) {
-          throw new Error("Failed to fetch social links");
-        }
+        if (!response.ok) throw new Error("Failed to fetch social links");
         const data: SocialMediaLink[] = await response.json();
         setSocialLinks(data);
       } catch (error) {
-        // If the fetch fails, we log the error but don't crash the page.
-        // The footer will simply show the "coming soon" message.
         console.error("Error fetching social links for footer:", error);
       }
     };
-
     fetchSocialLinks();
-  }, []); // The empty array [] means this effect only runs on the initial render.
+  }, []);
 
+  // Correctly scrolls to an element ID
   const handleScrollTo = (targetId: string) => {
-    if (lenis) {
-      const targetElement = document.querySelector(targetId);
-      if (targetElement instanceof HTMLElement) {
-        lenis.scrollTo(targetElement, { offset: -96 });
-      }
+    const isHomePage = pathname === "/";
+    if (isHomePage) {
+      // If on homepage, just scroll
+      scroller.scrollTo(targetId, {
+        smooth: true,
+        duration: 500,
+        offset: -96,
+      });
+    } else {
+      // If on another page, navigate with hash
+      router.push(`/#${targetId}`);
     }
   };
 
+  // Correctly scrolls to the top of the page
   const handleScrollToTop = () => {
-    if (lenis) {
-      lenis.scrollTo(0);
-    }
+    animateScroll.scrollToTop({
+      smooth: true,
+      duration: 500,
+    });
   };
 
   return (
     <footer className="w-full border-t border-border/50 bg-primary text-primary-foreground">
       <div className="container mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 py-12 sm:px-6 md:grid-cols-3 lg:px-8">
-        {/* Column 1: DBTS Section (Unchanged) */}
+        {/* Column 1: DBTS Section */}
         <div>
           <button
             onClick={handleScrollToTop}
@@ -68,7 +72,7 @@ export function Footer() {
           >
             <Image
               src="/logo.svg"
-              alt="Dayspring Behavioural Therapeutic Services Logo"
+              alt="Dayspring Logo"
               width={90}
               height={90}
             />
@@ -87,7 +91,7 @@ export function Footer() {
           </p>
         </div>
 
-        {/* Column 2 & 3 (Unchanged logic, but with the updated social section) */}
+        {/* Column 2 & 3 */}
         <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-8">
           <div>
             <h4 className="font-semibold text-primary-foreground">
@@ -96,7 +100,7 @@ export function Footer() {
             <ul className="mt-4 space-y-2">
               <li>
                 <button
-                  onClick={() => handleScrollTo("#about")}
+                  onClick={() => handleScrollTo("about")}
                   className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out"
                 >
                   About
@@ -104,7 +108,7 @@ export function Footer() {
               </li>
               <li>
                 <button
-                  onClick={() => handleScrollTo("#services")}
+                  onClick={() => handleScrollTo("services")}
                   className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out"
                 >
                   Services
@@ -112,7 +116,7 @@ export function Footer() {
               </li>
               <li>
                 <button
-                  onClick={() => handleScrollTo("#faq")}
+                  onClick={() => handleScrollTo("faq")}
                   className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out"
                 >
                   FAQ
@@ -120,7 +124,7 @@ export function Footer() {
               </li>
               <li>
                 <button
-                  onClick={() => handleScrollTo("#contact")}
+                  onClick={() => handleScrollTo("contact")}
                   className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out"
                 >
                   Contact
@@ -147,19 +151,16 @@ export function Footer() {
                   </p>
                 </div>
               </div>
-
-              {/* === THIS IS THE DYNAMIC PART === */}
               <div className="pt-4">
                 <p className="text-sm text-primary-foreground/80 mb-2">
                   Follow our journey:
                 </p>
                 {socialLinks.length > 0 ? (
-                  // If links exist, map over them and render an icon for each.
                   <div className="flex items-center space-x-3">
                     {socialLinks.map((link) => {
                       const IconComponent =
                         socialIcons[link.icon as keyof typeof socialIcons];
-                      if (!IconComponent) return null; // Failsafe
+                      if (!IconComponent) return null;
                       return (
                         <a
                           key={link.icon}
@@ -175,7 +176,6 @@ export function Footer() {
                     })}
                   </div>
                 ) : (
-                  // If no links are available (or they are still loading), show the placeholder.
                   <div className="flex items-center space-x-3">
                     <div className="w-8 h-8 bg-primary-foreground/10 rounded-lg flex items-center justify-center">
                       <Instagram
@@ -194,19 +194,19 @@ export function Footer() {
         </div>
       </div>
 
-      {/* Bottom Copyright Section (Unchanged) */}
+      {/* Bottom Copyright Section */}
       <div className="border-t border-primary-foreground/20 py-6">
         <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 text-center sm:flex-row sm:px-6 lg:px-8">
           <p className="text-sm text-primary-foreground/80">
             © {new Date().getFullYear()} Dayspring Behavioural Therapeutic
             Services. All Rights Reserved.
           </p>
-          <Link
+          <NextLink
             href="/login"
             className="text-xs text-primary-foreground/60 transition-colors hover:text-primary-foreground ease-in-out"
           >
             Admin Login
-          </Link>
+          </NextLink>
         </div>
       </div>
     </footer>

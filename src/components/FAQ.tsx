@@ -1,4 +1,5 @@
-// src/components/FAQ.tsx
+// FILE: src/components/FAQ.tsx
+
 "use client";
 
 import {
@@ -8,7 +9,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { useLenis } from "@/context/LenisContext";
+import { scroller } from "react-scroll"; // <-- ADD this import
 import { AnimatedSection } from "./AnimatedSection";
 import type { HomePageData } from "@/types/homepage";
 
@@ -18,12 +19,14 @@ interface FAQProps {
 }
 
 const FAQ = ({ data }: FAQProps) => {
-  const lenis = useLenis();
-
+  // THIS IS THE UPDATED FUNCTION
   const handleScrollToContact = () => {
-    if (lenis) {
-      lenis.scrollTo("#contact", { offset: -96 });
-    }
+    scroller.scrollTo("contact", {
+      // The target element's ID
+      smooth: true,
+      duration: 500,
+      offset: -96, // Account for the sticky header
+    });
   };
 
   return (
@@ -60,11 +63,11 @@ const FAQ = ({ data }: FAQProps) => {
         {/* CTA after FAQ */}
         <div className="text-center mt-16">
           <p className="text-muted-foreground mb-6">
-            Still have questions? We&apos;re here to help and would love to chat with
-            you.
+            Still have questions? We&apos;re here to help and would love to chat
+            with you.
           </p>
           <Button
-            onClick={handleScrollToContact}
+            onClick={handleScrollToContact} // This onClick handler is now correct
             size="lg"
             className="shadow-gentle"
           >

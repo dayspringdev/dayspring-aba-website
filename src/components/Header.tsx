@@ -1,86 +1,93 @@
+// FILE: src/components/Header.tsx
+
 "use client";
 
-import { useState } from "react"; // 1. Import useState for menu state
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import Link from "next/link";
-import { useLenis } from "@/context/LenisContext";
-import { usePathname } from "next/navigation";
+import NextLink from "next/link"; // Renamed to avoid conflict
+import { Link as ScrollLink, animateScroll } from "react-scroll";
+import { usePathname } from "next/navigation"; // Already imported
 import Image from "next/image";
-import { Menu, X } from "lucide-react"; // 2. Import icons for the mobile menu
+import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-export function Header() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false); // 3. State to manage mobile menu visibility
-  const lenis = useLenis();
+// --- CREATE A REUSABLE NAVIGATION LINK COMPONENT ---
+// This component will decide whether to render a ScrollLink or a NextLink
+const NavLink = ({
+  to,
+  children,
+}: {
+  to: string;
+  children: React.ReactNode;
+}) => {
   const pathname = usePathname();
+  const isHomePage = pathname === "/";
 
-  const handleNavigation = (
-    e: React.MouseEvent<HTMLAnchorElement>,
-    targetId: string
-  ) => {
-    if (pathname === "/") {
-      e.preventDefault();
-      if (lenis) {
-        lenis.scrollTo(targetId, { offset: -96 });
-      }
+  // onClick handler for mobile menu to close it
+  const handleClick = () => {
+    const mobileMenuButton = document.querySelector(
+      '[aria-label="Toggle menu"]'
+    );
+    if (mobileMenuButton instanceof HTMLElement) {
+      mobileMenuButton.click();
     }
-    setIsMenuOpen(false); // Close menu on navigation
   };
+
+  if (isHomePage) {
+    // If we're on the homepage, use react-scroll for smooth scrolling
+    return (
+      <ScrollLink
+        to={to}
+        smooth={true}
+        duration={500}
+        offset={-96}
+        onClick={handleClick}
+        className="nav-link text-muted-foreground hover:text-primary tracking-tight font-thin ease-in-out cursor-pointer"
+      >
+        {children}
+      </ScrollLink>
+    );
+  } else {
+    // If we're on another page, use Next.js Link to navigate back to the homepage with a hash
+    return (
+      <NextLink
+        href={`/#${to}`}
+        className="nav-link text-muted-foreground hover:text-primary tracking-tight font-thin ease-in-out cursor-pointer"
+      >
+        {children}
+      </NextLink>
+    );
+  }
+};
+// --- END OF REUSABLE COMPONENT ---
+
+export function Header() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const pathname = usePathname();
 
   const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (pathname === "/") {
       e.preventDefault();
-      if (lenis) {
-        lenis.scrollTo(0);
-      }
+      // Use animateScroll to smoothly scroll to the top of the page
+      animateScroll.scrollToTop({ smooth: true, duration: 500 });
     }
-    setIsMenuOpen(false); // Close menu on navigation
+    setIsMenuOpen(false);
   };
 
   return (
-    // Add relative positioning to be a container for the absolute mobile menu
     <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur-sm">
-      {/* 4. Adjust header height and layout for mobile */}
       <div className="container mx-auto flex h-34 max-w-8xl items-center justify-between px-4 sm:px-6 lg:p-8">
-        {/* === 5. Desktop Navigation Links (Hidden on Mobile) === */}
+        {/* === Desktop Navigation Links === */}
         <nav className="hidden w-1/3 items-center justify-start gap-10 lg:gap-6 text-md font-medium lg:flex">
-          <Link
-            href="/#services"
-            onClick={(e) => handleNavigation(e, "#services")}
-            className="nav-link text-muted-foreground hover:text-primary tracking-tight font-thin ease-in-out"
-          >
-            Services
-          </Link>
-          <Link
-            href="/#about"
-            onClick={(e) => handleNavigation(e, "#about")}
-            className="nav-link text-muted-foreground hover:text-primary tracking-tight font-extralight ease-in-out"
-          >
-            About
-          </Link>
-          <Link
-            href="/#faq"
-            onClick={(e) => handleNavigation(e, "#faq")}
-            className="nav-link text-muted-foreground hover:text-primary tracking-tight font-extralight ease-in-out"
-          >
-            FAQ
-          </Link>
-          <Link
-            href="/#contact"
-            onClick={(e) => handleNavigation(e, "#contact")}
-            className="nav-link text-muted-foreground hover:text-primary tracking-tight font-extralight ease-in-out"
-          >
-            Contact
-          </Link>
+          <NavLink to="services">Services</NavLink>
+          <NavLink to="about">About</NavLink>
+          <NavLink to="faq">FAQ</NavLink>
+          <NavLink to="contact">Contact</NavLink>
         </nav>
 
-        {/* This empty div ensures the logo stays centered on desktop using the 3-column layout */}
-        {/* <div className="hidden w-1/3 lg:flex lg:justify-center"></div> */}
-
-        {/* === 6. Centered Logo (Responsive) === */}
-        {/* On mobile, this becomes the left-aligned item */}
+        {/* Centered Logo */}
         <div className="flex justify-start lg:w-1/3 lg:justify-center">
-          <Link
+          <NextLink
             href="/"
             onClick={handleLogoClick}
             className="flex items-center gap-2"
@@ -91,10 +98,8 @@ export function Header() {
               width={120}
               height={120}
               priority
-              // Adjust image size for mobile
               className="h-20 w-20 lg:h-[90px] lg:w-[90px]"
             />
-            {/* Hide text on smaller screens to prevent clutter */}
             <div className="hidden flex-col sm:flex">
               <h1 className="text-2xl font-bold tracking-wide text-primary lg:text-3xl">
                 <span className="block">Dayspring</span>
@@ -104,20 +109,20 @@ export function Header() {
                 THERAPEUTIC SERVICES
               </p>
             </div>
-          </Link>
+          </NextLink>
         </div>
 
-        {/* === 7. Desktop "Book" Button (Hidden on Mobile) === */}
+        {/* Desktop "Book" Button */}
         <div className="hidden w-1/3 justify-end lg:flex">
           <Button
             asChild
             className="bg-primary hover:bg-primary-soft text-primary-foreground shadow-gentle"
           >
-            <Link href="/book">Book Consultation</Link>
+            <NextLink href="/book">Book Consultation</NextLink>
           </Button>
         </div>
 
-        {/* === 8. Mobile Menu Button (Hamburger) === */}
+        {/* Mobile Menu Button */}
         <div className="flex items-center lg:hidden">
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -129,7 +134,7 @@ export function Header() {
         </div>
       </div>
 
-      {/* === 9. Mobile Menu Overlay === */}
+      {/* Mobile Menu Overlay */}
       <div
         className={cn(
           "absolute left-0 w-full bg-background/95 backdrop-blur-sm lg:hidden",
@@ -140,41 +145,18 @@ export function Header() {
         )}
       >
         <nav className="flex flex-col items-center gap-6 px-4 py-8">
-          <Link
-            href="/#services"
-            onClick={(e) => handleNavigation(e, "#services")}
-            className="text-lg font-medium text-muted-foreground hover:text-primary"
-          >
-            Services
-          </Link>
-          <Link
-            href="/#about"
-            onClick={(e) => handleNavigation(e, "#about")}
-            className="text-lg font-medium text-muted-foreground hover:text-primary"
-          >
-            About
-          </Link>
-          <Link
-            href="/#faq"
-            onClick={(e) => handleNavigation(e, "#faq")}
-            className="text-lg font-medium text-muted-foreground hover:text-primary"
-          >
-            FAQ
-          </Link>
-          <Link
-            href="/#contact"
-            onClick={(e) => handleNavigation(e, "#contact")}
-            className="text-lg font-medium text-muted-foreground hover:text-primary"
-          >
-            Contact
-          </Link>
+          <NavLink to="services">Services</NavLink>
+          <NavLink to="about">About</NavLink>
+          <NavLink to="faq">FAQ</NavLink>
+          <NavLink to="contact">Contact</NavLink>
+
           <Button
             asChild
             size="lg"
             className="mt-4 w-full max-w-xs"
             onClick={() => setIsMenuOpen(false)}
           >
-            <Link href="/book">Book Consultation</Link>
+            <NextLink href="/book">Book Consultation</NextLink>
           </Button>
         </nav>
       </div>

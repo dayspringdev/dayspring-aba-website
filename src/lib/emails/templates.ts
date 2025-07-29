@@ -1,6 +1,7 @@
 // src/lib/emails/templates.ts
 
 import type { EmailDataMap } from "./types";
+import { generateGoogleCalendarLink } from "@/lib/utils"; // <-- IMPORT our new helper
 
 // The base template function. This creates the consistent wrapper for all emails.
 const baseTemplate = (
@@ -27,7 +28,7 @@ const baseTemplate = (
           <td align="center">
             <table cellpadding="0" cellspacing="0" border="0" style="width: auto;">
               <tr>
-              
+
               <!-- Logo Box -->
               <td style="padding-right:12px;">
                   <!-- The link makes the logo clickable, leading to your homepage -->
@@ -163,13 +164,46 @@ export const templates: TemplatesObject = {
     body: (data) => {
       const title = "Booking Confirmed";
       const preheader = `Your consultation is confirmed for ${data.formattedDate}.`;
+
+      // Create a 'Booking'-like object that our helper function understands
+      const bookingForLink = {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        email: data.email,
+        slot_time: data.slotTime,
+        notes: data.notes,
+        // Add dummy data for fields the helper expects but we don't use here
+        id: data.bookingId,
+        created_at: new Date().toISOString(),
+        status: "confirmed" as const,
+      };
+
+      const googleLink = generateGoogleCalendarLink(bookingForLink);
+      // NOTE: We still need to create this public API route
+      const icsLink = `https://www.dayspringaba.ca/api/public/bookings/${data.bookingId}/ics`;
+
       const content = `
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">Hi ${data.firstName},</p>
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">
             Great news! Your consultation with Dayspring Behavioural Therapeutic Services is confirmed for <strong>${data.formattedDate}</strong>.
           </p>
+          
+          <!-- ADDED CALENDAR BUTTONS -->
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 20px 0;">
+            <tr>
+              <td align="center">
+                <a href="${googleLink}" target="_blank" style="display: inline-block; padding: 12px 24px; margin: 5px; font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; background-color: #4285F4; border-radius: 5px;">
+                  Add to Google Calendar
+                </a>
+                <a href="${icsLink}" style="display: inline-block; padding: 12px 24px; margin: 5px; font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; background-color: #0073C1; border-radius: 5px;">
+                  Add to Outlook/Other
+                </a>
+              </td>
+            </tr>
+          </table>
+
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">
-            We look forward to speaking with you. If you have any questions before then, please visit our website at and use the contact form!
+            We look forward to speaking with you. If you have any questions before then, please visit our website and use the contact form!
           </p>
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">*This is an automated notification. Please do not reply to this email.*</p>
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">Sincerely,<br>The Dayspring Team</p>

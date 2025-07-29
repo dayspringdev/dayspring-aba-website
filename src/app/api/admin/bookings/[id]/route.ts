@@ -56,7 +56,12 @@ export async function PATCH(
           await sendEmail("bookingConfirmed", {
             to: updatedBooking.email,
             data: {
+              bookingId: updatedBooking.id, // Provide the ID
               firstName: updatedBooking.first_name,
+              lastName: updatedBooking.last_name, // Provide the last name
+              email: updatedBooking.email, // Provide the email
+              slotTime: updatedBooking.slot_time, // Provide the ISO time string
+              notes: updatedBooking.notes, // Provide the notes
               formattedDate: formattedDate,
             },
           });

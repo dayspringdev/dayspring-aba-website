@@ -25,6 +25,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RescheduleDialog } from "@/components/admin/RescheduleDialog";
 import { NewBookingDialog } from "@/components/admin/NewBookingDialog";
+import { CalendarPlus } from "lucide-react"; // <-- IMPORT the icon
+import { generateGoogleCalendarLink } from "@/lib/utils"; // <-- IMPORT our new helper
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
@@ -105,7 +107,6 @@ export default function BookingsPage() {
   };
 
   const renderActionButtons = (booking: Booking) => {
-    // 5. Create specific booleans for each action
     const isConfirming =
       updatingState?.id === booking.id &&
       updatingState?.action === "confirming";
@@ -155,7 +156,25 @@ export default function BookingsPage() {
         updatingState?.id === booking.id &&
         updatingState?.action === "cancelling";
       return (
-        <div className="flex flex-wrap gap-2 justify-end">
+        <div className="flex flex-wrap gap-2 justify-end items-center">
+          {/* Google Calendar Button */}
+          <Button size="sm" variant="outline" asChild>
+            <a
+              href={generateGoogleCalendarLink(booking)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <CalendarPlus className="mr-2 h-4 w-4" /> Google
+            </a>
+          </Button>
+
+          {/* .ics File Download Button */}
+          <Button size="sm" variant="outline" asChild>
+            <a href={`/api/admin/bookings/${booking.id}/ics`}>
+              <CalendarPlus className="mr-2 h-4 w-4" /> Outlook/Other
+            </a>
+          </Button>
+
           <Button
             size="sm"
             variant="outline"

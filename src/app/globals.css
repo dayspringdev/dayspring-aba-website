@@ -111,6 +111,10 @@ h3 {
   letter-spacing: -0.025em;
 }
 
+h1 {
+  font-size: 2.25rem; /* Tailwind's default size for 'text-4xl' */
+}
+
 .nav-link {
   position: relative;
   text-decoration: none;

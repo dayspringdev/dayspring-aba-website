@@ -79,10 +79,10 @@ export function Header() {
               className="h-20 w-20 lg:h-[90px] lg:w-[90px]"
             />
             <div className="hidden flex-col sm:flex">
-              <h1 className="text-2xl font-bold tracking-wide text-primary lg:text-3xl">
+              <div className="text-2xl font-bold tracking-wide text-primary lg:text-3xl">
                 <span className="block">Dayspring</span>
                 <span className="block">Behavioural</span>
-              </h1>
+              </div>
               <p className="text-xs tracking-widest text-muted-foreground">
                 THERAPEUTIC SERVICES
               </p>

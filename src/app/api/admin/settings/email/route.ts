@@ -5,32 +5,20 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function POST(request: NextRequest) {
   const { newEmail } = await request.json();
-
-  if (!newEmail) {
-    return NextResponse.json(
-      { error: "New email is required." },
-      { status: 400 }
-    );
-  }
-
   const supabase = createClient();
-
-  // GOOD PRACTICE FIX: Use getUser() to avoid security warnings in logs.
   const {
     data: { user },
-    error: userError,
   } = await supabase.auth.getUser();
 
-  if (userError || !user) {
+  if (!user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const redirectUrl = new URL(request.url).origin;
-  const redirectTo = `${redirectUrl}/login?message=email-confirmed`;
-  console.log(
-    "[API /admin/settings/email] Generated redirectTo URL:",
-    redirectTo
-  );
+  // --- DIAGNOSTIC CHANGE ---
+  // We are redirecting to a simple, clean page that is NOT in the middleware's matcher.
+  const redirectTo = `${redirectUrl}/email-confirmation-test`;
+  console.log("[DIAGNOSTIC] Generated redirectTo URL:", redirectTo);
 
   const { error } = await supabase.auth.updateUser(
     {
@@ -50,6 +38,6 @@ export async function POST(request: NextRequest) {
   }
 
   return NextResponse.json({
-    message: `Verification link sent to ${newEmail}. Please check your inbox to confirm the change.`,
+    message: `Verification link sent to ${newEmail}. Please check your inbox for the diagnostic test.`,
   });
 }

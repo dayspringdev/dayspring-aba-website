@@ -3,6 +3,7 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
+import Script from "next/script"; // Import the Script component
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -11,22 +12,31 @@ const poppins = Poppins({
   display: "swap",
 });
 
-// THIS IS THE UPDATED METADATA OBJECT
 export const metadata: Metadata = {
   title: "DBTS - Dayspring Behavioural Therapeutic Services",
   description: "Compassionate, evidence-based therapy and behavioral services.",
-  manifest: "/site.webmanifest", // Links to the file in your /public folder
+  manifest: "/site.webmanifest",
   icons: {
-    // This points to the main icon file (the renamed 512x512 png)
     icon: "/icon.png",
-    // This is the classic favicon for older browsers
     shortcut: "/favicon.ico",
-    // This is the icon for Apple devices
     apple: "/apple-icon.png",
   },
 };
 
-// The rest of the file is the same
+// This is the raw JavaScript code for our "signal catcher"
+const signalCatcherScript = `
+  (function() {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('from_invite') === 'true') {
+      console.log('[Signal Catcher] Invite signal detected. Setting session flag.');
+      sessionStorage.setItem('is_new_invite', 'true');
+      // Clean up the URL for a better user experience
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, document.title, newUrl);
+    }
+  })();
+`;
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -35,6 +45,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${poppins.variable} font-sans antialiased`}>
+        {/*
+          This script will run immediately when the page loads,
+          before the main Next.js/React components.
+        */}
+        <Script id="signal-catcher" strategy="beforeInteractive">
+          {signalCatcherScript}
+        </Script>
         {children}
       </body>
     </html>

@@ -1,30 +1,54 @@
-// FILE: /src/app/auth/callback/route.ts
-
+// FILE: src/app/auth/callback/route.ts
 import { createClient } from "@/lib/supabase/server";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
-  // LOG 1: Prove this route is being hit.
   console.log("[CALLBACK] Auth callback route reached.");
 
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
+  const next = requestUrl.searchParams.get("next") || "/admin";
+
+  console.log(`[CALLBACK] Code: ${code ? "present" : "missing"}`);
+  console.log(`[CALLBACK] 'next' parameter: "${next}"`);
 
   if (code) {
     const supabase = createClient();
-    await supabase.auth.exchangeCodeForSession(code);
-    console.log("[CALLBACK] Code exchanged for session successfully.");
+
+    try {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+
+      if (error) {
+        console.error("[CALLBACK] Error exchanging code:", error);
+        // Redirect to login with a specific error if exchange fails
+        const errorUrl = new URL(
+          "/login?error=auth_callback_error",
+          requestUrl.origin
+        );
+        errorUrl.searchParams.set("error_description", error.message);
+        return NextResponse.redirect(errorUrl);
+      }
+
+      console.log("[CALLBACK] Code exchanged successfully.");
+      console.log("[CALLBACK] Session user email is now:", data.user?.email);
+    } catch (error) {
+      console.error("[CALLBACK] Exception during code exchange:", error);
+      const errorUrl = new URL(
+        "/login?error=unexpected_callback_error",
+        requestUrl.origin
+      );
+      return NextResponse.redirect(errorUrl);
+    }
+  } else {
+    console.warn(
+      "[CALLBACK] No code found in URL. This is expected for email change flow."
+    );
   }
 
-  // LOG 2: See what the 'next' parameter contains. This is critical.
-  const next = requestUrl.searchParams.get("next") || "/admin";
-  console.log(`[CALLBACK] 'next' parameter from Supabase is: "${next}"`);
-
-  // This is the robust way to create the final redirect URL.
   const finalRedirectUrl = new URL(next, requestUrl.origin);
   console.log(
-    `[CALLBACK] Final calculated redirect URL is: "${finalRedirectUrl.toString()}"`
+    `[CALLBACK] Redirecting to final destination: "${finalRedirectUrl.toString()}"`
   );
 
   return NextResponse.redirect(finalRedirectUrl);

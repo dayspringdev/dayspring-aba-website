@@ -1,14 +1,21 @@
-// FILE: ./src/middleware.ts
+// FILE: src/middleware.ts
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  // LOG 1: Prove this file is running
   console.log(
     `[MIDDLEWARE START] Path: ${req.nextUrl.pathname}, Search: ${req.nextUrl.search}`
   );
+
+  // This is the most critical check. We explicitly DO NOT run session logic on the callback route.
+  if (req.nextUrl.pathname.startsWith("/auth/callback")) {
+    console.log(
+      "[MIDDLEWARE] Skipping auth callback route, allowing it to process."
+    );
+    return res;
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,7 +35,7 @@ export async function middleware(req: NextRequest) {
     }
   );
 
-  // This block must come first.
+  // This block handles the final redirect after the callback has finished.
   if (req.nextUrl.pathname.startsWith("/login")) {
     const message = req.nextUrl.searchParams.get("message");
     console.log("[MIDDLEWARE] Path is /login. Message param:", message);
@@ -43,13 +50,11 @@ export async function middleware(req: NextRequest) {
     }
   }
 
-  // GOOD PRACTICE FIX: Use getUser() instead of getSession() for security.
-  // This also proves the new code is running.
   const {
     data: { user },
   } = await supabase.auth.getUser();
   console.log(
-    "[MIDDLEWARE] User state from getUser():",
+    "[MIDDLEWARE] User state:",
     user ? `Exists for user ${user.id}` : "is null"
   );
 
@@ -75,6 +80,7 @@ export async function middleware(req: NextRequest) {
   return res;
 }
 
+// This matcher is simpler and works with the logic above.
 export const config = {
-  matcher: ["/admin/:path*", "/login", "/forgot-password"],
+  matcher: ["/admin/:path*", "/login", "/forgot-password", "/auth/callback"],
 };

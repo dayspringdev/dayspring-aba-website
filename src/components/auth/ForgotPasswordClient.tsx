@@ -1,5 +1,3 @@
-// FILE: src/components/auth/ForgotPasswordClient.tsx
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -18,15 +16,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, MailCheck, CheckCircle } from "lucide-react"; // Import CheckCircle
+import { Loader2, MailCheck } from "lucide-react";
 
-// Add 'success' to the View type to handle the final confirmation screen
-type View = "request" | "sent" | "update" | "verifying" | "success";
+type View = "request" | "sent" | "update" | "verifying";
 
+// The function is renamed
 export default function ForgotPasswordClient() {
   const supabase = createClient();
   const router = useRouter();
-  const searchParams = useSearchParams();
+  const searchParams = useSearchParams(); // This is now safely inside a client component
   const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -60,9 +58,41 @@ export default function ForgotPasswordClient() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === "PASSWORD_RECOVERY") {
         setView("update");
+      } else if (event === "SIGNED_IN" && session) {
+        supabase.auth.getClaims().then(({ data: claims }) => {
+          const amr = claims?.claims?.amr as { method: string }[] | undefined;
+          const isRecovery = amr?.some((m) => m.method === "recovery") ?? false;
+          if (isRecovery) {
+            setView("update");
+          } else {
+            setView("request");
+          }
+        });
+      } else if (event === "INITIAL_SESSION" && !session) {
+        supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
+          if (error) {
+            console.error("Code exchange error:", error.message);
+            setView("request");
+          } else if (data.session) {
+            supabase.auth.getClaims().then(({ data: claims }) => {
+              const amr = claims?.claims?.amr as
+                | { method: string }[]
+                | undefined;
+              const isRecovery =
+                amr?.some((m) => m.method === "recovery") ?? false;
+              if (isRecovery) {
+                setView("update");
+              } else {
+                setView("request");
+              }
+            });
+          } else {
+            setView("request");
+          }
+        });
       }
     });
 
@@ -100,47 +130,21 @@ export default function ForgotPasswordClient() {
       return;
     }
     setIsLoading(true);
-
-    // Update the password, which also creates a new session.
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: newPassword,
-    });
-
-    if (updateError) {
-      setErrorMessage(updateError.message);
-      setIsLoading(false);
-      return;
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) {
+      setErrorMessage(error.message);
+    } else {
+      await supabase.auth.signOut();
+      toast.success("Password updated successfully!", {
+        description: "Please log in with your new password.",
+      });
+      router.push("/login");
     }
-
-    // Immediately sign out to clear the session.
-    await supabase.auth.signOut();
-
-    // Change the component's state to show the success message instead of redirecting.
-    setView("success");
     setIsLoading(false);
   };
 
   const renderContent = () => {
     switch (view) {
-      // This is the new success view, shown after the password is changed.
-      case "success":
-        return (
-          <>
-            <CardHeader className="items-center text-center">
-              <CheckCircle className="h-12 w-12 text-green-500 mb-2" />
-              <CardTitle className="text-2xl">Password Updated!</CardTitle>
-            </CardHeader>
-            <CardContent className="text-center text-sm text-muted-foreground">
-              <p>Your password has been changed successfully.</p>
-            </CardContent>
-            <CardFooter>
-              <Button asChild className="w-full">
-                <Link href="/login">Proceed to Login</Link>
-              </Button>
-            </CardFooter>
-          </>
-        );
-
       case "verifying":
         return (
           <CardContent className="text-center">
@@ -266,14 +270,13 @@ export default function ForgotPasswordClient() {
     <div className="flex min-h-[80vh] w-full items-center justify-center bg-background/50">
       <Card className="w-full max-w-sm">
         {renderContent()}
-        {/* Update the footer to not show "Back to Login" on the success or sent screens */}
-        {view !== "sent" && view !== "success" && (
-          <CardFooter>
+        <CardFooter>
+          {view !== "sent" && (
             <Button asChild variant="link" className="text-xs mx-auto">
               <Link href="/login">← Back to Login</Link>
             </Button>
-          </CardFooter>
-        )}
+          )}
+        </CardFooter>
       </Card>
     </div>
   );

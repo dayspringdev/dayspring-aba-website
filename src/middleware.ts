@@ -21,9 +21,6 @@ export async function middleware(req: NextRequest) {
           res.cookies.set({ name, value: "", ...options });
         },
       },
-      auth: {
-        flowType: "pkce",
-      },
     }
   );
 
@@ -31,24 +28,34 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
 
-  const message = req.nextUrl.searchParams.get("message");
+  // --- THIS IS THE FINAL, COMPLETE FIX ---
+  // Check for the email confirmation message on the login page
+  if (req.nextUrl.pathname.startsWith("/login")) {
+    const message = req.nextUrl.searchParams.get("message");
+    if (message === "email-confirmed") {
+      // If the message exists, sign the user out immediately.
+      // The `signOut` method, when used with the SSR client,
+      // will automatically add the necessary `Set-Cookie` headers
+      // to the response to clear the auth tokens from the browser.
+      await supabase.auth.signOut();
 
-  if (message === "email-confirmed") {
-    if (session) await supabase.auth.signOut();
-    return res;
+      // Then, allow the request to proceed to the login page.
+      // The browser will render the page AND clear the cookie simultaneously.
+      return res;
+    }
   }
+  // --- END OF FIX ---
 
   if (session) {
-    // The special logic for 'password-updated-logout' is now removed.
-
     const { data: claims } = await supabase.auth.getClaims();
     const amr = claims?.claims?.amr as { method: string }[] | undefined;
     const isRecovery = amr?.some((m) => m.method === "recovery") ?? false;
 
-    if (isRecovery && !req.nextUrl.pathname.startsWith("/forgot-password")) {
+    if (isRecovery && req.nextUrl.pathname.startsWith("/admin")) {
       return NextResponse.redirect(new URL("/forgot-password", req.url));
     }
 
+    // This now only runs if the 'email-confirmed' message is NOT present
     if (!isRecovery && req.nextUrl.pathname.startsWith("/login")) {
       return NextResponse.redirect(new URL("/admin", req.url));
     }

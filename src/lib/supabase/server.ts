@@ -27,7 +27,7 @@ export const createClient = () => {
             );
           } catch (error) {
             // Handle cookie setting errors in server components
-            console.warn('Failed to set cookies:', error);
+            console.warn("Failed to set cookies:", error);
           }
         },
       },

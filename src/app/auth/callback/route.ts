@@ -4,8 +4,6 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
-  console.log("[CALLBACK] Auth callback route reached.");
-
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const token_hash = requestUrl.searchParams.get("token_hash");
@@ -13,19 +11,12 @@ export async function GET(request: NextRequest) {
   const type = requestUrl.searchParams.get("type");
   const next = requestUrl.searchParams.get("next") || "/admin";
 
-  console.log(`[CALLBACK] Code: ${code ? "present" : "missing"}`);
-  console.log(`[CALLBACK] Token hash: ${token_hash ? "present" : "missing"}`);
-  console.log(`[CALLBACK] Token: ${token ? "present" : "missing"}`);
-  console.log(`[CALLBACK] Type: ${type || "not specified"}`);
-  console.log(`[CALLBACK] Next parameter: "${next}"`);
-  console.log(`[CALLBACK] Full URL: ${requestUrl.toString()}`);
-
   const supabase = createClient();
 
   // Handle PKCE flow (code exchange)
   if (code) {
     try {
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+      const { error } = await supabase.auth.exchangeCodeForSession(code);
 
       if (error) {
         console.error("[CALLBACK] Error exchanging code:", error);
@@ -36,9 +27,6 @@ export async function GET(request: NextRequest) {
         errorUrl.searchParams.set("error_description", error.message);
         return NextResponse.redirect(errorUrl);
       }
-
-      console.log("[CALLBACK] Code exchanged successfully.");
-      console.log("[CALLBACK] Session user email is now:", data.user?.email);
     } catch (error) {
       console.error("[CALLBACK] Exception during code exchange:", error);
       return NextResponse.redirect(
@@ -51,7 +39,7 @@ export async function GET(request: NextRequest) {
     const tokenValue = token_hash || token;
     if (tokenValue) {
       try {
-        const { data, error } = await supabase.auth.verifyOtp({
+        const { error } = await supabase.auth.verifyOtp({
           token_hash: tokenValue,
           type: type as
             | "signup"
@@ -70,9 +58,6 @@ export async function GET(request: NextRequest) {
           errorUrl.searchParams.set("error_description", error.message);
           return NextResponse.redirect(errorUrl);
         }
-
-        console.log("[CALLBACK] Token verified successfully.");
-        console.log("[CALLBACK] User email updated to:", data.user?.email);
       } catch (error) {
         console.error("[CALLBACK] Exception during token verification:", error);
         return NextResponse.redirect(
@@ -91,7 +76,6 @@ export async function GET(request: NextRequest) {
   }
 
   const finalRedirectUrl = new URL(next, requestUrl.origin);
-  console.log(`[CALLBACK] Redirecting to: "${finalRedirectUrl.toString()}"`);
 
   return NextResponse.redirect(finalRedirectUrl);
 }

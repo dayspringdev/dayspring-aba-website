@@ -15,17 +15,13 @@ export async function POST(request: NextRequest) {
   }
 
   const redirectUrl = new URL(request.url).origin;
-  
+
   // Use a simpler redirect that goes directly to a success page
   // This bypasses the complex callback flow
   const redirectTo = `${redirectUrl}/login?message=email-confirmed`;
 
-  console.log("[EMAIL UPDATE API] Generated redirectTo URL:", redirectTo);
-  console.log("[EMAIL UPDATE API] Current user email:", user.email);
-  console.log("[EMAIL UPDATE API] New email:", newEmail);
-
   try {
-    const { data, error } = await supabase.auth.updateUser(
+    const { error } = await supabase.auth.updateUser(
       {
         email: newEmail,
       },
@@ -42,14 +38,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("[EMAIL UPDATE API] Update request successful:", data);
-
     return NextResponse.json({
       message: `Verification link sent to ${newEmail}. Please check your inbox and click the confirmation link.`,
     });
-    
-  } catch (error) {
-    console.error("[EMAIL UPDATE API] Exception:", error);
+  } catch {
     return NextResponse.json(
       { error: "An unexpected error occurred." },
       { status: 500 }

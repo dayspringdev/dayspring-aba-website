@@ -5,9 +5,9 @@ import type { NextRequest } from "next/server";
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  // LOG 1
+  // LOG 1: Prove this file is running
   console.log(
-    `[MIDDLEWARE] Request received for path: ${req.nextUrl.pathname} with search params: ${req.nextUrl.search}`
+    `[MIDDLEWARE START] Path: ${req.nextUrl.pathname}, Search: ${req.nextUrl.search}`
   );
 
   const supabase = createServerClient(
@@ -22,64 +22,55 @@ export async function middleware(req: NextRequest) {
           res.cookies.set({ name, value, ...options });
         },
         remove(name, options) {
-          // This line is corrected for the build
           res.cookies.set({ name, value: "", ...options });
         },
       },
     }
   );
 
+  // This block must come first.
   if (req.nextUrl.pathname.startsWith("/login")) {
-    // LOG 2
-    console.log("[MIDDLEWARE] Path is /login, checking for message...");
     const message = req.nextUrl.searchParams.get("message");
-    // LOG 3
-    console.log("[MIDDLEWARE] Found message parameter:", message);
+    console.log("[MIDDLEWARE] Path is /login. Message param:", message);
 
     if (message === "email-confirmed") {
-      // LOG 4
       console.log(
-        '[MIDDLEWARE] "email-confirmed" message found. Attempting to sign out...'
+        '[MIDDLEWARE] "email-confirmed" found! Signing out stale session.'
       );
       await supabase.auth.signOut();
-      // LOG 5
-      console.log(
-        "[MIDDLEWARE] signOut() called. Allowing request to proceed to login page."
-      );
+      console.log("[MIDDLEWARE] SignOut complete. Allowing render of /login.");
       return res;
     }
   }
 
+  // GOOD PRACTICE FIX: Use getUser() instead of getSession() for security.
+  // This also proves the new code is running.
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  // LOG 6
+    data: { user },
+  } = await supabase.auth.getUser();
   console.log(
-    "[MIDDLEWARE] Session state:",
-    session ? `Exists for user ${session.user.id}` : "is null"
+    "[MIDDLEWARE] User state from getUser():",
+    user ? `Exists for user ${user.id}` : "is null"
   );
 
-  if (session) {
+  if (user) {
     if (req.nextUrl.pathname.startsWith("/login")) {
-      // LOG 7
       console.log(
-        "[MIDDLEWARE] User has session and is on /login. Redirecting to /admin."
+        "[MIDDLEWARE] User exists and is on /login. Redirecting to /admin."
       );
       return NextResponse.redirect(new URL("/admin", req.url));
     }
   } else {
     if (req.nextUrl.pathname.startsWith("/admin")) {
-      // LOG 8
       console.log(
-        "[MIDDLEWARE] User has no session and is on /admin. Redirecting to /login."
+        "[MIDDLEWARE] No user and is on /admin. Redirecting to /login."
       );
       return NextResponse.redirect(new URL("/login", req.url));
     }
   }
 
-  // LOG 9
   console.log(
-    "[MIDDLEWARE] No specific rules matched. Passing request through."
+    "[MIDDLEWARE END] No redirect rules matched. Passing request through."
   );
   return res;
 }

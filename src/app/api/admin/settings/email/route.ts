@@ -15,30 +15,44 @@ export async function POST(request: NextRequest) {
   }
 
   const redirectUrl = new URL(request.url).origin;
-  // THIS IS THE FIX: We redirect to the callback, which will then redirect to our final destination.
-  const finalDestination = "/login?message=email-confirmed";
-  const redirectTo = `${redirectUrl}/auth/callback?next=${encodeURIComponent(finalDestination)}`;
+  
+  // Use a simpler redirect that goes directly to a success page
+  // This bypasses the complex callback flow
+  const redirectTo = `${redirectUrl}/login?message=email-confirmed`;
 
   console.log("[EMAIL UPDATE API] Generated redirectTo URL:", redirectTo);
+  console.log("[EMAIL UPDATE API] Current user email:", user.email);
+  console.log("[EMAIL UPDATE API] New email:", newEmail);
 
-  const { error } = await supabase.auth.updateUser(
-    {
-      email: newEmail,
-    },
-    {
-      emailRedirectTo: redirectTo,
+  try {
+    const { data, error } = await supabase.auth.updateUser(
+      {
+        email: newEmail,
+      },
+      {
+        emailRedirectTo: redirectTo,
+      }
+    );
+
+    if (error) {
+      console.error("[EMAIL UPDATE API] Supabase error:", error);
+      return NextResponse.json(
+        { error: error.message || "Failed to update email." },
+        { status: 500 }
+      );
     }
-  );
 
-  if (error) {
-    console.error("[EMAIL UPDATE API] Supabase error:", error);
+    console.log("[EMAIL UPDATE API] Update request successful:", data);
+
+    return NextResponse.json({
+      message: `Verification link sent to ${newEmail}. Please check your inbox and click the confirmation link.`,
+    });
+    
+  } catch (error) {
+    console.error("[EMAIL UPDATE API] Exception:", error);
     return NextResponse.json(
-      { error: error.message || "Failed to update email." },
+      { error: "An unexpected error occurred." },
       { status: 500 }
     );
   }
-
-  return NextResponse.json({
-    message: `Verification link sent to ${newEmail}. Please check your inbox and click the confirmation link.`,
-  });
 }

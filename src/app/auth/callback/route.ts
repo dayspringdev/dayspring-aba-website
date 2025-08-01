@@ -9,13 +9,16 @@ export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const token_hash = requestUrl.searchParams.get("token_hash");
+  const token = requestUrl.searchParams.get("token");
   const type = requestUrl.searchParams.get("type");
   const next = requestUrl.searchParams.get("next") || "/admin";
 
   console.log(`[CALLBACK] Code: ${code ? "present" : "missing"}`);
   console.log(`[CALLBACK] Token hash: ${token_hash ? "present" : "missing"}`);
+  console.log(`[CALLBACK] Token: ${token ? "present" : "missing"}`);
   console.log(`[CALLBACK] Type: ${type || "not specified"}`);
   console.log(`[CALLBACK] Next parameter: "${next}"`);
+  console.log(`[CALLBACK] Full URL: ${requestUrl.toString()}`);
 
   const supabase = createClient();
 
@@ -44,35 +47,40 @@ export async function GET(request: NextRequest) {
     }
   }
   // Handle email confirmation with token hash (legacy/direct token method)
-  else if (token_hash && type) {
-    try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        token_hash,
-        type: type as
-          | "signup"
-          | "email_change"
-          | "recovery"
-          | "invite"
-          | "magiclink",
-      });
+  else if ((token_hash || token) && type) {
+    const tokenValue = token_hash || token;
+    if (tokenValue) {
+      try {
+        const { data, error } = await supabase.auth.verifyOtp({
+          token_hash: tokenValue,
+          type: type as
+            | "signup"
+            | "email_change"
+            | "recovery"
+            | "invite"
+            | "magiclink",
+        });
 
-      if (error) {
-        console.error("[CALLBACK] Error verifying token:", error);
-        const errorUrl = new URL(
-          "/login?error=token_verification_error",
-          requestUrl.origin
+        if (error) {
+          console.error("[CALLBACK] Error verifying token:", error);
+          const errorUrl = new URL(
+            "/login?error=token_verification_error",
+            requestUrl.origin
+          );
+          errorUrl.searchParams.set("error_description", error.message);
+          return NextResponse.redirect(errorUrl);
+        }
+
+        console.log("[CALLBACK] Token verified successfully.");
+        console.log("[CALLBACK] User email updated to:", data.user?.email);
+      } catch (error) {
+        console.error("[CALLBACK] Exception during token verification:", error);
+        return NextResponse.redirect(
+          new URL("/login?error=unexpected_token_error", requestUrl.origin)
         );
-        errorUrl.searchParams.set("error_description", error.message);
-        return NextResponse.redirect(errorUrl);
       }
-
-      console.log("[CALLBACK] Token verified successfully.");
-      console.log("[CALLBACK] User email updated to:", data.user?.email);
-    } catch (error) {
-      console.error("[CALLBACK] Exception during token verification:", error);
-      return NextResponse.redirect(
-        new URL("/login?error=unexpected_token_error", requestUrl.origin)
-      );
+    } else {
+      console.warn("[CALLBACK] Token value is null/undefined");
     }
   }
   // No code or token - this might be a direct link or error

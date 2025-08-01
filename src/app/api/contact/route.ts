@@ -1,9 +1,50 @@
 // FILE: src/app/api/contact/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { sendEmail } from "@/lib/emails/send"; // <-- IMPORT your email service
+import { sendEmail } from "@/lib/emails/send";
 import { publicSupabase } from "@/lib/supabase/public-server";
+import { getHomepageContent } from "@/lib/data-access/homepage";
 
+export const revalidate = 60; // Cache the GET response for 60 seconds
+
+/**
+ * @route   GET /api/contact
+ * @desc    Retrieves public contact info (email, social links) for the footer.
+ */
+export async function GET() {
+  try {
+    // This call is cached, so it's very fast if the page has already loaded.
+    const pageContent = await getHomepageContent();
+
+    if (!pageContent || !pageContent.contact) {
+      throw new Error("Contact information not found.");
+    }
+
+    // The email was already dynamically injected by getHomepageContent.
+    // We just need to find it and extract it.
+    const emailItem = pageContent.contact.contactItems.find(
+      (item) => item.icon === "Mail"
+    );
+    const email = emailItem?.description || ""; // Fallback to an empty string
+
+    const socialLinks = pageContent.contact.socialMediaLinks || [];
+
+    return NextResponse.json({ email, socialLinks });
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : "An unknown error occurred";
+    console.error("API Error fetching contact info:", message);
+    return NextResponse.json(
+      { error: "Could not fetch contact information." },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * @route   POST /api/contact
+ * @desc    Handles the submission of the website's contact form.
+ */
 export async function POST(request: NextRequest) {
   try {
     // Fetch the public contact email from the database

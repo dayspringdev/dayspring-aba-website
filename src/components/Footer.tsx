@@ -7,7 +7,7 @@ import NextLink from "next/link"; // For the external /login link
 import { Mail, Instagram, Facebook, Linkedin, Twitter } from "lucide-react";
 import Image from "next/image";
 import type { SocialMediaLink } from "@/types/homepage";
-import { Link as ScrollLink, animateScroll } from "react-scroll"; // <-- CORRECTLY IMPORT BOTH
+import { Link as ScrollLink, animateScroll } from "react-scroll";
 
 // A map to look up the correct icon component based on the string from the database.
 const socialIcons = {
@@ -17,24 +17,36 @@ const socialIcons = {
   Twitter,
 };
 
+// Define the shape of the data we'll fetch from our unified API
+interface FooterData {
+  email: string;
+  socialLinks: SocialMediaLink[];
+}
+
 export function Footer() {
-  const [socialLinks, setSocialLinks] = useState<SocialMediaLink[]>([]);
+  const [footerData, setFooterData] = useState<FooterData>({
+    email: "",
+    socialLinks: [],
+  });
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSocialLinks = async () => {
+    const fetchFooterData = async () => {
       try {
-        const response = await fetch("/api/social-links");
-        if (!response.ok) throw new Error("Failed to fetch social links");
-        const data: SocialMediaLink[] = await response.json();
-        setSocialLinks(data);
+        // Call the single, unified API endpoint
+        const response = await fetch("/api/contact");
+        if (!response.ok) throw new Error("Failed to fetch footer data");
+        const data: FooterData = await response.json();
+        setFooterData(data);
       } catch (error) {
-        console.error("Error fetching social links for footer:", error);
+        console.error("Error fetching data for footer:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
-    fetchSocialLinks();
+    fetchFooterData();
   }, []);
 
-  // Correctly scrolls to the top of the page using the imported animateScroll
   const handleScrollToTop = () => {
     animateScroll.scrollToTop({
       smooth: true,
@@ -79,8 +91,6 @@ export function Footer() {
               Navigation
             </h4>
             <ul className="mt-4 space-y-2">
-              {/* --- THIS IS THE FIX --- */}
-              {/* Each ScrollLink now has the essential 'href' attribute for SEO */}
               <li>
                 <ScrollLink
                   to="about"
@@ -129,7 +139,6 @@ export function Footer() {
                   Contact
                 </ScrollLink>
               </li>
-              {/* --- END OF FIX --- */}
             </ul>
           </div>
           <div>
@@ -144,7 +153,12 @@ export function Footer() {
                 />
                 <div>
                   <p className="text-primary-foreground font-medium">
-                    dayspringbehavioural@gmail.com
+                    {/* --- DYNAMIC EMAIL DISPLAY --- */}
+                    {isLoading
+                      ? "Loading..."
+                      : footerData.email ||
+                        "dayspringbehavioural@gmail.com"}{" "}
+                    {/* Fallback */}
                   </p>
                   <p className="text-sm text-primary-foreground/80">
                     We&apos;d love to hear from you
@@ -155,9 +169,9 @@ export function Footer() {
                 <p className="text-sm text-primary-foreground/80 mb-2">
                   Follow our journey:
                 </p>
-                {socialLinks.length > 0 ? (
+                {footerData.socialLinks.length > 0 ? (
                   <div className="flex items-center space-x-3">
-                    {socialLinks.map((link) => {
+                    {footerData.socialLinks.map((link) => {
                       const IconComponent =
                         socialIcons[link.icon as keyof typeof socialIcons];
                       if (!IconComponent) return null;

@@ -34,46 +34,38 @@ export async function middleware(req: NextRequest) {
   const message = req.nextUrl.searchParams.get("message");
 
   if (message === "email-confirmed") {
+    // This logic is fine, it handles a specific case before the main checks.
     if (session) await supabase.auth.signOut();
     return res;
   }
 
-  // --- THIS IS THE NEW, DEFINITIVE LOGIC ---
   if (session) {
-    // PRIORITY #1: If the user has just updated their password,
-    // we need to sign them out and send them to the login page to see the success message.
-    if (message === "password-updated") {
-      // 1. Sign out the new session immediately.
-      await supabase.auth.signOut();
-
-      // 2. Create a clean redirect to the login page, preserving only the final toast message.
-      const redirectUrl = req.nextUrl.clone();
-      redirectUrl.pathname = "/login";
-      redirectUrl.searchParams.set("message", "password-updated"); // Keep the correct message for the toast
-
-      // 3. Perform the redirect.
-      return NextResponse.redirect(redirectUrl);
-    }
-    // --- END OF NEW LOGIC ---
+    // The complex, loop-causing logic has been removed from here.
 
     const { data: claims } = await supabase.auth.getClaims();
     const amr = claims?.claims?.amr as { method: string }[] | undefined;
     const isRecovery = amr?.some((m) => m.method === "recovery") ?? false;
 
+    // If the user is in a recovery state (from an invite/reset link)
+    // but isn't on the forgot-password page, send them there.
     if (isRecovery && !req.nextUrl.pathname.startsWith("/forgot-password")) {
       return NextResponse.redirect(new URL("/forgot-password", req.url));
     }
 
-    // This redirect to /admin will now only happen for NORMAL logins, not after a password update.
+    // If the user has a normal, valid session and tries to visit the login page,
+    // redirect them to the admin dashboard where they belong.
     if (!isRecovery && req.nextUrl.pathname.startsWith("/login")) {
       return NextResponse.redirect(new URL("/admin", req.url));
     }
   } else {
+    // If there is no session and the user tries to access a protected admin route,
+    // redirect them to the login page.
     if (req.nextUrl.pathname.startsWith("/admin")) {
       return NextResponse.redirect(new URL("/login", req.url));
     }
   }
 
+  // If none of the above conditions are met, let the user proceed.
   return res;
 }
 

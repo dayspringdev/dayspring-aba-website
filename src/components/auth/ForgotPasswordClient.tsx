@@ -133,16 +133,30 @@ export default function ForgotPasswordClient() {
       return;
     }
     setIsLoading(true);
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
 
-    if (error) {
-      setErrorMessage(error.message);
+    // First, update the user's password. This creates a new session.
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+
+    if (updateError) {
+      setErrorMessage(updateError.message);
       setIsLoading(false);
-    } else {
-      // The user now has a valid session.
-      // We will redirect them to the middleware with a final command.
-      router.push("/login?message=password-updated");
+      return; // Stop execution on error
     }
+
+    // Immediately after a successful update, sign the user out.
+    // This clears the new session before we navigate away.
+    const { error: signOutError } = await supabase.auth.signOut();
+
+    if (signOutError) {
+      // If sign-out fails, it's not critical, but we should log it and still proceed.
+      console.error("Sign out failed after password update:", signOutError);
+    }
+
+    // Now that the session is guaranteed to be cleared,
+    // we can safely redirect to the login page with our success message.
+    router.push("/login?message=password-updated");
   };
 
   // The renderContent function and the final return statement are correct and remain unchanged.

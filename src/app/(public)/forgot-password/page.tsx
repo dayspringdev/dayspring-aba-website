@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,8 @@ type View = "request" | "sent" | "update" | "verifying";
 export default function ForgotPasswordPage() {
   const supabase = createClient();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -31,32 +33,40 @@ export default function ForgotPasswordPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
-    // console.log("Current view:", view);
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get("code");
+    // FIX 2: Use the searchParams hook consistently
+    const code = searchParams.get("code");
+    const errorDescription = searchParams.get("error_description");
+
+    // Handle invalid link error first
+    if (errorDescription) {
+      const formattedMessage = (
+        errorDescription.charAt(0).toUpperCase() + errorDescription.slice(1)
+      ).replace(/\+/g, " ");
+
+      toast.error("An Error Occurred", {
+        description: formattedMessage,
+        duration: 8000,
+      });
+
+      router.replace("/forgot-password", { scroll: false });
+      setView("request"); // Show the request form after the error
+      return;
+    }
 
     if (!code) {
-      // console.log("No code parameter found");
       setView("request");
       return;
     }
 
-    // console.log("Code parameter:", code);
-
-    // Handle auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
-      // console.log("Auth event:", event, "Session:", !!session);
       if (event === "PASSWORD_RECOVERY") {
-        // console.log("PASSWORD_RECOVERY event triggered");
         setView("update");
       } else if (event === "SIGNED_IN" && session) {
-        // console.log("Checking recovery mode for SIGNED_IN");
         supabase.auth.getClaims().then(({ data: claims }) => {
           const amr = claims?.claims?.amr as { method: string }[] | undefined;
           const isRecovery = amr?.some((m) => m.method === "recovery") ?? false;
-          // console.log("Recovery mode:", isRecovery);
           if (isRecovery) {
             setView("update");
           } else {
@@ -64,22 +74,18 @@ export default function ForgotPasswordPage() {
           }
         });
       } else if (event === "INITIAL_SESSION" && !session) {
-        // Attempt to exchange code for session
         supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
           if (error) {
             console.error("Code exchange error:", error.message);
-            setErrorMessage("Invalid or expired reset link.");
+            // The errorDescription logic above will handle the user-facing message.
             setView("request");
           } else if (data.session) {
-            // console.log("Code exchange successful, session:", !!data.session);
-            // Check recovery mode
             supabase.auth.getClaims().then(({ data: claims }) => {
               const amr = claims?.claims?.amr as
                 | { method: string }[]
                 | undefined;
               const isRecovery =
                 amr?.some((m) => m.method === "recovery") ?? false;
-              // console.log("Recovery mode after exchange:", isRecovery);
               if (isRecovery) {
                 setView("update");
               } else {
@@ -87,7 +93,6 @@ export default function ForgotPasswordPage() {
               }
             });
           } else {
-            // console.log("No session after code exchange");
             setView("request");
           }
         });
@@ -97,7 +102,8 @@ export default function ForgotPasswordPage() {
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase.auth]);
+    // FIX 3: Add searchParams to the dependency array. It's correct for this hook.
+  }, [supabase.auth, searchParams, router]);
 
   const handlePasswordResetRequest = async (
     e: React.FormEvent<HTMLFormElement>

@@ -91,19 +91,21 @@ export function UpdateProfileForm() {
   return (
     <Card className="max-w-2xl mb-6 shadow-none border-muted/20">
       <CardHeader>
-        <CardTitle>Contact Email Configuration</CardTitle>
+        <CardTitle>Business Notification Email</CardTitle>
         <CardDescription>
-          Set the email address where messages from the website&apos;s contact
-          form will be sent.
+          This is the primary email where all booking requests and contact form
+          messages will be sent.
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleUpdateProfile}>
         <CardContent>
           {/* REMOVED: Full Name and Role Title inputs are gone. */}
           <div className="space-y-2">
-            <Label htmlFor="publicContactEmail">Public Contact Email</Label>
+            <Label htmlFor="notificationEmail">
+              Notification Email Address
+            </Label>
             <Input
-              id="publicContactEmail"
+              id="notificationEmail"
               type="email"
               value={profile?.public_contact_email || ""}
               onChange={(e) =>
@@ -115,8 +117,7 @@ export function UpdateProfileForm() {
               }
             />
             <p className="text-xs text-muted-foreground">
-              This is where you will receive messages from the website&apos;s
-              contact form.
+              All website notifications will be sent to this address.
             </p>
           </div>
         </CardContent>

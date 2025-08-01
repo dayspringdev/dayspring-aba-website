@@ -3,13 +3,14 @@
 import {
   startOfDay,
   getDay,
-  parse,
   isWithinInterval,
   isEqual,
   addHours,
   endOfDay,
+  format,
 } from "date-fns";
-import { toZonedTime } from "date-fns-tz";
+// Import the necessary timezone functions, including the CORRECT one: fromZonedTime
+import { toZonedTime, fromZonedTime } from "date-fns-tz";
 import type { Database } from "@/types/supabase";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { TIMEZONE } from "./config";
@@ -29,9 +30,12 @@ export const getAvailableSlots = async (
   supabase: SupabaseClient<Database>,
   date: Date
 ): Promise<Date[]> => {
+  // Get the current date and time IN YOUR BUSINESS'S TIMEZONE.
+  const nowInToronto = toZonedTime(new Date(), TIMEZONE);
+
+  // Define your lead time and calculate the earliest bookable moment in your timezone.
   const bookingLeadTimeHours = 2;
-  const now = new Date();
-  const earliestBookingTime = addHours(now, bookingLeadTimeHours);
+  const earliestBookingTime = addHours(nowInToronto, bookingLeadTimeHours);
 
   const dayOfWeek = getDayInToronto(date);
   const dayStart = startOfDay(date);
@@ -43,15 +47,11 @@ export const getAvailableSlots = async (
       .select("available_slots")
       .eq("day_of_week", dayOfWeek)
       .single(),
-
-    // === THIS IS THE FIX: The query logic is now correct for finding overlaps ===
     supabase
       .from("availability_overrides")
       .select("*")
-      .lte("start_time", dayEnd.toISOString()) // The override must start BEFORE the day ends
-      .gte("end_time", dayStart.toISOString()), // AND the override must end AFTER the day begins
-    // ===========================================================================
-
+      .lte("start_time", dayEnd.toISOString())
+      .gte("end_time", dayStart.toISOString()),
     supabase
       .from("bookings")
       .select("slot_time")
@@ -64,8 +64,6 @@ export const getAvailableSlots = async (
   const todaysOverrides: Override[] = overridesRes.data || [];
   const todaysBookings = bookingsRes.data || [];
 
-  // If there's an override that covers the whole day, we can stop early.
-  // This is an optimization.
   const isDayFullyBlocked = todaysOverrides.some(
     (override) =>
       new Date(override.start_time) <= dayStart &&
@@ -81,31 +79,35 @@ export const getAvailableSlots = async (
     return [];
   }
 
-  const timezoneOffset =
-    new Date(date.toLocaleString("en-US", { timeZone: TIMEZONE })).getTime() -
-    date.getTime();
-
+  // --- THIS IS THE DEFINITIVE FIX ---
+  // We use `fromZonedTime` which correctly interprets a string as being in a
+  // specific timezone and returns the corresponding UTC Date object.
   const potentialSlots: Date[] = rule.available_slots.map((timeStr) => {
-    const naiveSlot = parse(timeStr, "HH:mm:ss", dayStart);
-    return new Date(naiveSlot.getTime() - timezoneOffset);
-  });
+    // e.g., "2025-07-31 09:00:00"
+    const dateString = `${format(date, "yyyy-MM-dd")} ${timeStr}`;
 
-  const isCheckingToday = isEqual(startOfDay(new Date()), startOfDay(date));
+    // This reads: "Take this string, treat it as a time in 'America/Toronto',
+    // and give me the universal Date object for that exact moment."
+    return fromZonedTime(dateString, TIMEZONE);
+  });
+  // --- END OF FIX ---
 
   const availableSlots = potentialSlots.filter((slot) => {
-    const isAfterLeadTime = isCheckingToday ? slot > earliestBookingTime : true;
+    // This comparison logic is now 100% reliable because both `slot` and
+    // `earliestBookingTime` are standard JavaScript Date objects (UTC timestamps).
+    const isAfterLeadTime = slot > earliestBookingTime;
 
     const isBooked = todaysBookings.some((booking) =>
       isEqual(new Date(booking.slot_time), slot)
     );
 
-    // Now this check will correctly identify slots within the full-day block
     const isOverridden = todaysOverrides.some((override) =>
       isWithinInterval(slot, {
         start: new Date(override.start_time),
         end: new Date(override.end_time),
       })
     );
+
     return isAfterLeadTime && !isBooked && !isOverridden;
   });
 

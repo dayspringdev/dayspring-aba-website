@@ -15,18 +15,18 @@ export async function POST(request: NextRequest) {
 
   const supabase = createClient();
 
+  // GOOD PRACTICE FIX: Use getUser() to avoid security warnings in logs.
   const {
     data: { user },
+    error: userError,
   } = await supabase.auth.getUser();
 
-  if (!user) {
+  if (userError || !user) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
   const redirectUrl = new URL(request.url).origin;
   const redirectTo = `${redirectUrl}/login?message=email-confirmed`;
-
-  // <-- ADD LOG
   console.log(
     "[API /admin/settings/email] Generated redirectTo URL:",
     redirectTo

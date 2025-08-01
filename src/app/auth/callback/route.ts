@@ -5,8 +5,8 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export async function GET(request: NextRequest) {
-  // <-- ADD LOG
-  console.log("[ROUTE /auth/callback] Callback route reached.");
+  // LOG 1: Prove this route is being hit.
+  console.log("[CALLBACK] Auth callback route reached.");
 
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
@@ -14,16 +14,18 @@ export async function GET(request: NextRequest) {
   if (code) {
     const supabase = createClient();
     await supabase.auth.exchangeCodeForSession(code);
+    console.log("[CALLBACK] Code exchanged for session successfully.");
   }
 
+  // LOG 2: See what the 'next' parameter contains. This is critical.
   const next = requestUrl.searchParams.get("next") || "/admin";
+  console.log(`[CALLBACK] 'next' parameter from Supabase is: "${next}"`);
 
-  // <-- ADD LOG
-  console.log("[ROUTE /auth/callback] Determined next path:", next);
+  // This is the robust way to create the final redirect URL.
+  const finalRedirectUrl = new URL(next, requestUrl.origin);
   console.log(
-    `[ROUTE /auth/callback] Redirecting to: ${requestUrl.origin}${next}`
+    `[CALLBACK] Final calculated redirect URL is: "${finalRedirectUrl.toString()}"`
   );
 
-  // URL to redirect to after sign in process completes
-  return NextResponse.redirect(`${requestUrl.origin}${next}`);
+  return NextResponse.redirect(finalRedirectUrl);
 }

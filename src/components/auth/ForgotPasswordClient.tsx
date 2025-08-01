@@ -102,7 +102,7 @@ export default function ForgotPasswordClient() {
       subscription.unsubscribe();
     };
   }, [supabase.auth, searchParams, router]);
-  
+
   // The handlePasswordResetRequest function is correct and remains unchanged.
   const handlePasswordResetRequest = async (
     e: React.FormEvent<HTMLFormElement>
@@ -139,13 +139,9 @@ export default function ForgotPasswordClient() {
       setErrorMessage(error.message);
     } else {
       await supabase.auth.signOut();
-      
-      // ✨ ADDED THE SUCCESS TOAST HERE ✨
-      toast.success("Password updated successfully!", {
-        description: "Please log in with your new password.",
-      });
-      
-      router.push("/login");
+
+      router.push("/login?message=password-updated");
+      // We don't need to set loading to false, as the component will unmount.
     }
     setIsLoading(false);
   };

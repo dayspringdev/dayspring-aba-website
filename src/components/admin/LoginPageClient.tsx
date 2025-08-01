@@ -31,13 +31,30 @@ export default function LoginPageClient() {
 
   useEffect(() => {
     const message = searchParams.get("message");
-    if (message === "email-confirmed") {
-      toast.success(
-        "Email successfully updated! Please log in with your new email address."
-      );
-      // The router.replace is still useful to clean up the URL
+
+    // Use a switch statement to handle different messages
+    switch (message) {
+      case "password-updated":
+        toast.success("Password updated successfully!", {
+          description: "Please log in with your new password.",
+        });
+        break;
+      case "email-confirmed":
+        toast.success("Email successfully updated!", {
+          description: "Please log in with your new email address.",
+        });
+        break;
+      default:
+        // No message, do nothing.
+        break;
+    }
+
+    // After showing the toast (or if there's no message),
+    // clean up the URL to remove the query parameter.
+    if (message) {
       router.replace("/login", { scroll: false });
     }
+    // The dependencies are correct. This runs when searchParams change.
   }, [searchParams, router]);
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {

@@ -121,7 +121,6 @@ export default function ForgotPasswordClient() {
     }
   };
 
-  // --- THIS IS THE MODIFIED FUNCTION ---
   const handleUpdatePassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -140,15 +139,11 @@ export default function ForgotPasswordClient() {
       setErrorMessage(error.message);
       setIsLoading(false);
     } else {
-      // After a successful password update, we now have a valid session.
-      // We will redirect to the middleware with a special command.
-      // The middleware will then handle signing out and redirecting to the
-      // login page with the success message.
-      router.push("/login?message=password-updated-logout");
+      // The user now has a valid session.
+      // We will redirect them to the middleware with a final command.
+      router.push("/login?message=password-updated");
     }
   };
-
-  // --- END OF MODIFICATION ---
 
   // The renderContent function and the final return statement are correct and remain unchanged.
   const renderContent = () => {

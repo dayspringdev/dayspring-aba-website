@@ -5,6 +5,8 @@ import type { NextRequest } from "next/server";
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
+  // <-- LOG 1
+  console.log("[MIDDLEWARE] Request received for path:", req.nextUrl.pathname);
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,21 +20,29 @@ export async function middleware(req: NextRequest) {
           res.cookies.set({ name, value, ...options });
         },
         remove(name, options) {
-          // THIS IS THE FIX FOR THE BUILD ERROR:
-          // Set the value to an empty string to delete the cookie.
           res.cookies.set({ name, value: "", ...options });
         },
       },
     }
   );
 
-  // We check for the email confirmation flow FIRST, before checking the session.
   if (req.nextUrl.pathname.startsWith("/login")) {
+    // <-- LOG 2
+    console.log("[MIDDLEWARE] Path is /login, checking for message...");
     const message = req.nextUrl.searchParams.get("message");
+    // <-- LOG 3
+    console.log("[MIDDLEWARE] Found message parameter:", message);
+
     if (message === "email-confirmed") {
-      // If we find the message, sign the user out to clear the stale session.
+      // <-- LOG 4
+      console.log(
+        '[MIDDLEWARE] "email-confirmed" message found. Attempting to sign out...'
+      );
       await supabase.auth.signOut();
-      // Then allow the request to proceed to the login page to show the toast.
+      // <-- LOG 5
+      console.log(
+        "[MIDDLEWARE] signOut() called. Allowing request to proceed to login page."
+      );
       return res;
     }
   }
@@ -40,8 +50,12 @@ export async function middleware(req: NextRequest) {
   const {
     data: { session },
   } = await supabase.auth.getSession();
+  // <-- LOG 6
+  console.log(
+    "[MIDDLEWARE] Session state:",
+    session ? `Exists for user ${session.user.id}` : "null"
+  );
 
-  // Now, we run the rest of the logic.
   if (session) {
     const { data: claims } = await supabase.auth.getClaims();
     const amr = claims?.claims?.amr as { method: string }[] | undefined;
@@ -52,6 +66,10 @@ export async function middleware(req: NextRequest) {
     }
 
     if (!isRecovery && req.nextUrl.pathname.startsWith("/login")) {
+      // <-- LOG 7
+      console.log(
+        "[MIDDLEWARE] User has session and is on /login. Redirecting to /admin."
+      );
       return NextResponse.redirect(new URL("/admin", req.url));
     }
   } else {

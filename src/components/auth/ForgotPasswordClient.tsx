@@ -135,16 +135,18 @@ export default function ForgotPasswordClient() {
     }
     setIsLoading(true);
     const { error } = await supabase.auth.updateUser({ password: newPassword });
+
     if (error) {
       setErrorMessage(error.message);
+      setIsLoading(false);
     } else {
-      await supabase.auth.signOut();
-
-      router.push("/login?message=password-updated");
-      // We don't need to set loading to false, as the component will unmount.
+      // INSTEAD of calling signOut here, we send a command to the middleware.
+      // This redirect tells the middleware: "The password is changed.
+      // Please sign the user out and then send them to the login page with a success message."
+      router.push("/login?message=password-updated-logout");
     }
-    setIsLoading(false);
   };
+
   // --- END OF MODIFICATION ---
 
   // The renderContent function and the final return statement are correct and remain unchanged.

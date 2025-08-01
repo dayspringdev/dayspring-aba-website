@@ -30,35 +30,39 @@ export async function middleware(req: NextRequest) {
   const {
     data: { session },
   } = await supabase.auth.getSession();
-  
-  if (req.nextUrl.pathname.startsWith("/login")) {
-    const message = req.nextUrl.searchParams.get("message");
-    if (message === "email-confirmed") {
-      await supabase.auth.signOut();
-      return res;
-    }
+
+  const message = req.nextUrl.searchParams.get("message");
+
+  // --- THIS IS THE NEW, ROBUST LOGIC ---
+  // Check for our special command from the forgot password page.
+  if (message === "password-updated-logout") {
+    // 1. Perform the sign-out securely on the server.
+    await supabase.auth.signOut();
+
+    // 2. Create the final destination URL with the toast message.
+    const redirectUrl = req.nextUrl.clone();
+    redirectUrl.pathname = "/login";
+    redirectUrl.searchParams.set("message", "password-updated"); // Set the final message for the toast.
+
+    // 3. Issue the redirect.
+    return NextResponse.redirect(redirectUrl);
+  }
+  // --- END OF NEW LOGIC ---
+
+  if (message === "email-confirmed") {
+    if (session) await supabase.auth.signOut();
+    return res;
   }
 
   if (session) {
-    // --- THIS IS THE FIX ---
-    // Check for our specific success message from the password reset flow.
-    const message = req.nextUrl.searchParams.get("message");
-    if (req.nextUrl.pathname.startsWith("/login") && message === "password-updated") {
-      // If this message exists, let the user pass through to the login page
-      // so they can view the success toast, even if they have a session.
-      return res;
-    }
-    // --- END OF FIX ---
-
     const { data: claims } = await supabase.auth.getClaims();
     const amr = claims?.claims?.amr as { method: string }[] | undefined;
     const isRecovery = amr?.some((m) => m.method === "recovery") ?? false;
 
-    if (isRecovery && req.nextUrl.pathname.startsWith("/admin")) {
+    if (isRecovery && !req.nextUrl.pathname.startsWith("/forgot-password")) {
       return NextResponse.redirect(new URL("/forgot-password", req.url));
     }
-    
-    // This now only runs if the 'password-updated' message is NOT present
+
     if (!isRecovery && req.nextUrl.pathname.startsWith("/login")) {
       return NextResponse.redirect(new URL("/admin", req.url));
     }

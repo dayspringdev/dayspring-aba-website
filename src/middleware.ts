@@ -21,6 +21,9 @@ export async function middleware(req: NextRequest) {
           res.cookies.set({ name, value: "", ...options });
         },
       },
+      auth: {
+        flowType: "pkce",
+      },
     }
   );
 
@@ -28,25 +31,25 @@ export async function middleware(req: NextRequest) {
     data: { session },
   } = await supabase.auth.getSession();
   
-  // --- THIS IS THE FINAL, COMPLETE FIX ---
-  // Check for the email confirmation message on the login page
   if (req.nextUrl.pathname.startsWith("/login")) {
     const message = req.nextUrl.searchParams.get("message");
     if (message === "email-confirmed") {
-      // If the message exists, sign the user out immediately.
-      // The `signOut` method, when used with the SSR client,
-      // will automatically add the necessary `Set-Cookie` headers
-      // to the response to clear the auth tokens from the browser.
       await supabase.auth.signOut();
-
-      // Then, allow the request to proceed to the login page.
-      // The browser will render the page AND clear the cookie simultaneously.
       return res;
     }
   }
-  // --- END OF FIX ---
 
   if (session) {
+    // --- THIS IS THE FIX ---
+    // Check for our specific success message from the password reset flow.
+    const message = req.nextUrl.searchParams.get("message");
+    if (req.nextUrl.pathname.startsWith("/login") && message === "password-updated") {
+      // If this message exists, let the user pass through to the login page
+      // so they can view the success toast, even if they have a session.
+      return res;
+    }
+    // --- END OF FIX ---
+
     const { data: claims } = await supabase.auth.getClaims();
     const amr = claims?.claims?.amr as { method: string }[] | undefined;
     const isRecovery = amr?.some((m) => m.method === "recovery") ?? false;
@@ -55,7 +58,7 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL("/forgot-password", req.url));
     }
     
-    // This now only runs if the 'email-confirmed' message is NOT present
+    // This now only runs if the 'password-updated' message is NOT present
     if (!isRecovery && req.nextUrl.pathname.startsWith("/login")) {
       return NextResponse.redirect(new URL("/admin", req.url));
     }

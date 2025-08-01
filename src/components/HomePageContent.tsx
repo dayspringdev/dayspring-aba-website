@@ -3,8 +3,8 @@
 "use client";
 
 import type { HomePageData } from "@/types/homepage";
-import { useEffect } from "react"; // <-- ADD useEffect
-import { scroller } from "react-scroll"; // <-- ADD scroller
+import { useEffect } from "react";
+import { scroller } from "react-scroll";
 import Hero from "@/components/Hero";
 import MissionVision from "./MissionVision";
 import CoreValues from "./CoreValues";
@@ -13,27 +13,25 @@ import Services from "./Services";
 import HowItWorks from "./HowItWorks";
 import FAQ from "./FAQ";
 import Contact from "./Contact";
-import React from "react"; // React import is good practice but not strictly needed here
+import React from "react";
 
-// This component is complete and correct.
 export function HomePageContent({ content }: { content: HomePageData | null }) {
+  // This hook handles scrolling when navigating from another page.
   useEffect(() => {
-    // Check if there is a hash in the URL
     const hash = window.location.hash;
     if (hash) {
-      // Extract the element ID from the hash (e.g., "#services" -> "services")
+      // Remove the '#' from the hash to get the element ID
       const elementId = hash.substring(1);
-      // Use a small timeout to ensure the element has rendered
+      // Use a small timeout to ensure the page has rendered before scrolling
       setTimeout(() => {
         scroller.scrollTo(elementId, {
           smooth: true,
-          duration: 800, // A slightly longer duration feels good on page load
-          offset: -96,
+          duration: 800,
+          offset: -96, // Adjust for your sticky header height
         });
-      }, 100); // 100ms delay
+      }, 100);
     }
-  }, []); // Empty array means this runs only once when the component mounts
-  // --- END OF HOOK ---
+  }, []); // The empty array ensures this runs only once when the component mounts
 
   if (!content) {
     return <div>Loading page...</div>;
@@ -41,7 +39,6 @@ export function HomePageContent({ content }: { content: HomePageData | null }) {
 
   return (
     <>
-      {/* Each of these components already contains the necessary id for react-scroll */}
       <Hero data={content.hero} />
       <MissionVision data={content.missionVision} />
       <CoreValues data={content.coreValues} />

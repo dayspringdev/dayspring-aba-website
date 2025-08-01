@@ -3,10 +3,14 @@
 import { createBrowserClient } from "@supabase/ssr";
 import type { Database } from "@/types/supabase";
 
-// This client is for use in "use client" components
 export const createClient = () =>
   createBrowserClient<Database>(
-    // --- THESE ARGUMENTS WERE MISSING ---
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    // We also tell the browser client to expect and handle the PKCE flow.
+    {
+      auth: {
+        flowType: "pkce",
+      },
+    }
   );

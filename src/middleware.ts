@@ -18,25 +18,24 @@ export async function middleware(req: NextRequest) {
           res.cookies.set({ name, value, ...options });
         },
         remove(name, options) {
+          // THIS IS THE FIX FOR THE BUILD ERROR:
+          // Set the value to an empty string to delete the cookie.
           res.cookies.set({ name, value: "", ...options });
         },
       },
     }
   );
 
-  // --- THIS IS THE CRITICAL CHANGE IN ORDER ---
   // We check for the email confirmation flow FIRST, before checking the session.
-  // This ensures the sign-out happens regardless of the current session state.
   if (req.nextUrl.pathname.startsWith("/login")) {
     const message = req.nextUrl.searchParams.get("message");
     if (message === "email-confirmed") {
-      // If we find the message, we sign the user out to clear the stale session.
+      // If we find the message, sign the user out to clear the stale session.
       await supabase.auth.signOut();
-      // Then we allow the request to proceed to the login page to show the toast.
+      // Then allow the request to proceed to the login page to show the toast.
       return res;
     }
   }
-  // --- END OF THE CRITICAL CHANGE ---
 
   const {
     data: { session },
@@ -52,7 +51,6 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(new URL("/forgot-password", req.url));
     }
 
-    // This logic now correctly runs only if the "email-confirmed" message was NOT present.
     if (!isRecovery && req.nextUrl.pathname.startsWith("/login")) {
       return NextResponse.redirect(new URL("/admin", req.url));
     }

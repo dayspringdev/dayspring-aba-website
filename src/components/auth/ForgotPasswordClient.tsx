@@ -140,9 +140,10 @@ export default function ForgotPasswordClient() {
       setErrorMessage(error.message);
       setIsLoading(false);
     } else {
-      // INSTEAD of calling signOut here, we send a command to the middleware.
-      // This redirect tells the middleware: "The password is changed.
-      // Please sign the user out and then send them to the login page with a success message."
+      // After a successful password update, we now have a valid session.
+      // We will redirect to the middleware with a special command.
+      // The middleware will then handle signing out and redirecting to the
+      // login page with the success message.
       router.push("/login?message=password-updated-logout");
     }
   };

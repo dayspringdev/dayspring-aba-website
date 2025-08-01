@@ -33,28 +33,26 @@ export async function middleware(req: NextRequest) {
 
   const message = req.nextUrl.searchParams.get("message");
 
-  // --- THIS IS THE NEW, ROBUST LOGIC ---
-  // Check for our special command from the forgot password page.
-  if (message === "password-updated-logout") {
-    // 1. Perform the sign-out securely on the server.
-    await supabase.auth.signOut();
-
-    // 2. Create the final destination URL with the toast message.
-    const redirectUrl = req.nextUrl.clone();
-    redirectUrl.pathname = "/login";
-    redirectUrl.searchParams.set("message", "password-updated"); // Set the final message for the toast.
-
-    // 3. Issue the redirect.
-    return NextResponse.redirect(redirectUrl);
-  }
-  // --- END OF NEW LOGIC ---
-
   if (message === "email-confirmed") {
     if (session) await supabase.auth.signOut();
     return res;
   }
 
   if (session) {
+    // --- THIS IS THE NEW, CORRECTED LOGIC ---
+    // PRIORITY #1: Check for our special command from the password reset flow.
+    // If we see this, we MUST sign out and redirect to the login page with the
+    // success message. This overrides all other logic.
+    if (message === "password-updated-logout") {
+      await supabase.auth.signOut();
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = "/login";
+      redirectUrl.searchParams.set("message", "password-updated");
+      return NextResponse.redirect(redirectUrl);
+    }
+    // --- END OF NEW LOGIC ---
+
+    // The rest of the logic only runs if the special command was not present.
     const { data: claims } = await supabase.auth.getClaims();
     const amr = claims?.claims?.amr as { method: string }[] | undefined;
     const isRecovery = amr?.some((m) => m.method === "recovery") ?? false;

@@ -1,24 +1,25 @@
 // FILE: src/app/api/admin/availability/overrides/batch/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server"; // <-- Import the correct server client helper
-
+import { createClient } from "@/lib/supabase/server";
 import type { Database } from "@/types/supabase";
 
 type NewOverride =
   Database["public"]["Tables"]["availability_overrides"]["Insert"];
+type OverrideId =
+  Database["public"]["Tables"]["availability_overrides"]["Row"]["id"];
 
 export async function POST(request: NextRequest) {
   const supabase = createClient();
   try {
     const { overridesToAdd, idsToDelete } = (await request.json()) as {
       overridesToAdd: NewOverride[];
-      idsToDelete: number[];
+      idsToDelete: OverrideId[]; // Use the proper ID type from your schema
     };
 
     // We can run these operations in parallel for efficiency
     const [deleteResult, insertResult] = await Promise.all([
-      // Delete operation
+      // Delete operation - now with proper typing
       supabase.from("availability_overrides").delete().in("id", idsToDelete),
       // Insert operation
       supabase.from("availability_overrides").insert(overridesToAdd),

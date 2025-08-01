@@ -8,20 +8,24 @@ export async function GET(request: NextRequest) {
 
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
+  const token_hash = requestUrl.searchParams.get("token_hash");
+  const type = requestUrl.searchParams.get("type");
   const next = requestUrl.searchParams.get("next") || "/admin";
 
   console.log(`[CALLBACK] Code: ${code ? "present" : "missing"}`);
-  console.log(`[CALLBACK] 'next' parameter: "${next}"`);
+  console.log(`[CALLBACK] Token hash: ${token_hash ? "present" : "missing"}`);
+  console.log(`[CALLBACK] Type: ${type || "not specified"}`);
+  console.log(`[CALLBACK] Next parameter: "${next}"`);
 
+  const supabase = createClient();
+
+  // Handle PKCE flow (code exchange)
   if (code) {
-    const supabase = createClient();
-
     try {
       const { data, error } = await supabase.auth.exchangeCodeForSession(code);
 
       if (error) {
         console.error("[CALLBACK] Error exchanging code:", error);
-        // Redirect to login with a specific error if exchange fails
         const errorUrl = new URL(
           "/login?error=auth_callback_error",
           requestUrl.origin
@@ -34,22 +38,52 @@ export async function GET(request: NextRequest) {
       console.log("[CALLBACK] Session user email is now:", data.user?.email);
     } catch (error) {
       console.error("[CALLBACK] Exception during code exchange:", error);
-      const errorUrl = new URL(
-        "/login?error=unexpected_callback_error",
-        requestUrl.origin
+      return NextResponse.redirect(
+        new URL("/login?error=unexpected_callback_error", requestUrl.origin)
       );
-      return NextResponse.redirect(errorUrl);
     }
-  } else {
+  }
+  // Handle email confirmation with token hash (legacy/direct token method)
+  else if (token_hash && type) {
+    try {
+      const { data, error } = await supabase.auth.verifyOtp({
+        token_hash,
+        type: type as
+          | "signup"
+          | "email_change"
+          | "recovery"
+          | "invite"
+          | "magiclink",
+      });
+
+      if (error) {
+        console.error("[CALLBACK] Error verifying token:", error);
+        const errorUrl = new URL(
+          "/login?error=token_verification_error",
+          requestUrl.origin
+        );
+        errorUrl.searchParams.set("error_description", error.message);
+        return NextResponse.redirect(errorUrl);
+      }
+
+      console.log("[CALLBACK] Token verified successfully.");
+      console.log("[CALLBACK] User email updated to:", data.user?.email);
+    } catch (error) {
+      console.error("[CALLBACK] Exception during token verification:", error);
+      return NextResponse.redirect(
+        new URL("/login?error=unexpected_token_error", requestUrl.origin)
+      );
+    }
+  }
+  // No code or token - this might be a direct link or error
+  else {
     console.warn(
-      "[CALLBACK] No code found in URL. This is expected for email change flow."
+      "[CALLBACK] No code or token found. Proceeding with redirect."
     );
   }
 
   const finalRedirectUrl = new URL(next, requestUrl.origin);
-  console.log(
-    `[CALLBACK] Redirecting to final destination: "${finalRedirectUrl.toString()}"`
-  );
+  console.log(`[CALLBACK] Redirecting to: "${finalRedirectUrl.toString()}"`);
 
   return NextResponse.redirect(finalRedirectUrl);
 }

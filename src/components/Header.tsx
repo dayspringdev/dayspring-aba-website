@@ -4,16 +4,14 @@
 
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import NextLink from "next/link"; // Renamed to avoid conflict
-import { Link as ScrollLink, animateScroll } from "react-scroll";
-import { usePathname } from "next/navigation"; // Already imported
+import NextLink from "next/link";
+import { scroller, animateScroll } from "react-scroll";
+import { usePathname } from "next/navigation";
 import Image from "next/image";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-// --- CREATE A REUSABLE NAVIGATION LINK COMPONENT ---
-// This component will decide whether to render a ScrollLink or a NextLink
-// --- THIS IS THE FIX: A simplified and SEO-friendly NavLink ---
+// This is the new, "smarter" NavLink component.
 const NavLink = ({
   to,
   children,
@@ -23,21 +21,41 @@ const NavLink = ({
   children: React.ReactNode;
   onLinkClick?: () => void;
 }) => {
+  const pathname = usePathname();
+  // const router = useRouter();
+
+  const handleNav = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    // Always call the passed onLinkClick for closing the mobile menu
+    if (onLinkClick) {
+      onLinkClick();
+    }
+
+    // If we are already on the homepage, use smooth scroll.
+    if (pathname === "/") {
+      e.preventDefault(); // Stop the browser from navigating
+      scroller.scrollTo(to, {
+        smooth: true,
+        duration: 500,
+        offset: -96,
+      });
+    } else {
+      // If we are on another page (e.g., /book), we let the NextLink navigate.
+      // The href="/#about" will take us to the homepage, and the useEffect
+      // in HomePageContent will handle the scroll.
+      // We don't need to do anything extra here.
+    }
+  };
+
   return (
-    <ScrollLink
-      to={to} // For react-scroll's JS scrolling
-      href={`/#${to}`} // For SEO and non-JS fallback
-      smooth={true}
-      duration={500}
-      offset={-96}
-      onClick={onLinkClick} // Used to close the mobile menu
-      className="nav-link text-muted-foreground hover:text-primary tracking-tight font-thin ease-in-out cursor-pointer"
+    <NextLink
+      href={`/#${to}`} // This ensures navigation from other pages works.
+      onClick={handleNav}
+      className="nav-link text-muted-foreground hover:text-primary tracking-tight font-medium ease-in-out cursor-pointer"
     >
       {children}
-    </ScrollLink>
+    </NextLink>
   );
 };
-// --- END OF FIX ---
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -46,7 +64,6 @@ export function Header() {
   const handleLogoClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (pathname === "/") {
       e.preventDefault();
-      // Use animateScroll to smoothly scroll to the top of the page
       animateScroll.scrollToTop({ smooth: true, duration: 500 });
     }
     setIsMenuOpen(false);
@@ -123,10 +140,18 @@ export function Header() {
         )}
       >
         <nav className="flex flex-col items-center gap-6 px-4 py-8">
-          <NavLink to="services">Services</NavLink>
-          <NavLink to="about">About</NavLink>
-          <NavLink to="faq">FAQ</NavLink>
-          <NavLink to="contact">Contact</NavLink>
+          <NavLink to="services" onLinkClick={() => setIsMenuOpen(false)}>
+            Services
+          </NavLink>
+          <NavLink to="about" onLinkClick={() => setIsMenuOpen(false)}>
+            About
+          </NavLink>
+          <NavLink to="faq" onLinkClick={() => setIsMenuOpen(false)}>
+            FAQ
+          </NavLink>
+          <NavLink to="contact" onLinkClick={() => setIsMenuOpen(false)}>
+            Contact
+          </NavLink>
 
           <Button
             asChild

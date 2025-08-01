@@ -3,11 +3,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import NextLink from "next/link"; // For the external /login link
+import NextLink from "next/link";
+import { usePathname } from "next/navigation";
 import { Mail, Instagram, Facebook, Linkedin, Twitter } from "lucide-react";
 import Image from "next/image";
 import type { SocialMediaLink } from "@/types/homepage";
-import { Link as ScrollLink, animateScroll } from "react-scroll";
+import { scroller, animateScroll } from "react-scroll";
 
 // A map to look up the correct icon component based on the string from the database.
 const socialIcons = {
@@ -23,6 +24,39 @@ interface FooterData {
   socialLinks: SocialMediaLink[];
 }
 
+// Create a NavLink specific to the Footer's needs
+const FooterNavLink = ({
+  to,
+  children,
+}: {
+  to: string;
+  children: React.ReactNode;
+}) => {
+  const pathname = usePathname();
+
+  const handleNav = (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (pathname === "/") {
+      e.preventDefault();
+      scroller.scrollTo(to, {
+        smooth: true,
+        duration: 500,
+        offset: -96,
+      });
+    }
+    // On other pages, let the default NextLink behavior handle navigation
+  };
+
+  return (
+    <NextLink
+      href={`/#${to}`}
+      onClick={handleNav}
+      className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out cursor-pointer"
+    >
+      {children}
+    </NextLink>
+  );
+};
+
 export function Footer() {
   const [footerData, setFooterData] = useState<FooterData>({
     email: "",
@@ -33,7 +67,6 @@ export function Footer() {
   useEffect(() => {
     const fetchFooterData = async () => {
       try {
-        // Call the single, unified API endpoint
         const response = await fetch("/api/contact");
         if (!response.ok) throw new Error("Failed to fetch footer data");
         const data: FooterData = await response.json();
@@ -92,52 +125,16 @@ export function Footer() {
             </h4>
             <ul className="mt-4 space-y-2">
               <li>
-                <ScrollLink
-                  to="about"
-                  href="/#about"
-                  smooth={true}
-                  duration={500}
-                  offset={-96}
-                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out cursor-pointer"
-                >
-                  About
-                </ScrollLink>
+                <FooterNavLink to="about">About</FooterNavLink>
               </li>
               <li>
-                <ScrollLink
-                  to="services"
-                  href="/#services"
-                  smooth={true}
-                  duration={500}
-                  offset={-96}
-                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out cursor-pointer"
-                >
-                  Services
-                </ScrollLink>
+                <FooterNavLink to="services">Services</FooterNavLink>
               </li>
               <li>
-                <ScrollLink
-                  to="faq"
-                  href="/#faq"
-                  smooth={true}
-                  duration={500}
-                  offset={-96}
-                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out cursor-pointer"
-                >
-                  FAQ
-                </ScrollLink>
+                <FooterNavLink to="faq">FAQ</FooterNavLink>
               </li>
               <li>
-                <ScrollLink
-                  to="contact"
-                  href="/#contact"
-                  smooth={true}
-                  duration={500}
-                  offset={-96}
-                  className="text-sm text-primary-foreground/80 hover:text-primary-foreground ease-in-out cursor-pointer"
-                >
-                  Contact
-                </ScrollLink>
+                <FooterNavLink to="contact">Contact</FooterNavLink>
               </li>
             </ul>
           </div>
@@ -153,7 +150,6 @@ export function Footer() {
                 />
                 <div>
                   <p className="text-primary-foreground font-medium">
-                    {/* --- DYNAMIC EMAIL DISPLAY --- */}
                     {isLoading
                       ? "Loading..."
                       : footerData.email ||

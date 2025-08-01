@@ -28,6 +28,12 @@ import { CalendarSkeleton } from "@/components/CalendarSkeleton";
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 
+// 1. DEFINE the correct type for a time slot object
+type TimeSlot = {
+  utc: string;
+  local: string;
+};
+
 interface RescheduleDialogProps {
   booking: Booking | null;
   open: boolean;
@@ -42,9 +48,11 @@ export function RescheduleDialog({
   onRescheduled,
 }: RescheduleDialogProps) {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [availableTimes, setAvailableTimes] = useState<string[]>([]);
+  // 2. UPDATE state to hold an array of TimeSlot objects
+  const [availableTimes, setAvailableTimes] = useState<TimeSlot[]>([]);
   const [isLoadingTimes, setIsLoadingTimes] = useState(false);
-  const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  // 3. UPDATE state to hold a single TimeSlot object or null
+  const [selectedTime, setSelectedTime] = useState<TimeSlot | null>(null);
   const [unavailableDates, setUnavailableDates] = useState<Date[]>([]);
   const [currentMonth, setCurrentMonth] = useState(startOfMonth(new Date()));
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
@@ -57,7 +65,8 @@ export function RescheduleDialog({
       const dateParam = startOfDay(selectedDate).toISOString();
       fetch(`/api/availability?date=${dateParam}`)
         .then((res) => res.json())
-        .then((data) => {
+        // 4. EXPLICITLY type the incoming data
+        .then((data: TimeSlot[]) => {
           if (Array.isArray(data)) {
             setAvailableTimes(data);
           }
@@ -108,10 +117,11 @@ export function RescheduleDialog({
 
   const handleConfirmReschedule = async () => {
     if (!booking || !selectedTime) return;
+    // 5. SEND the correct UTC time string from the selected object
     const promise = fetch(`/api/admin/bookings/${booking.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ newSlotTime: selectedTime }),
+      body: JSON.stringify({ newSlotTime: selectedTime.utc }),
     }).then((res) => {
       if (!res.ok) {
         return res.json().then((err) => {
@@ -189,14 +199,17 @@ export function RescheduleDialog({
                     No available slots.
                   </p>
                 )}
+              {/* 6. UPDATE the mapping logic to use the object's properties */}
               {availableTimes.map((time) => (
                 <Button
-                  key={time}
-                  variant={selectedTime === time ? "default" : "outline"}
+                  key={time.utc}
+                  variant={
+                    selectedTime?.utc === time.utc ? "default" : "outline"
+                  }
                   onClick={() => setSelectedTime(time)}
                   className="flex-shrink-0"
                 >
-                  {format(parseISO(time), "p")}
+                  {time.local}
                 </Button>
               ))}
             </div>

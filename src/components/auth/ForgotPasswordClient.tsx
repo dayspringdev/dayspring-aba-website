@@ -1,3 +1,5 @@
+// FILE: src/components/auth/ForgotPasswordClient.tsx
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -20,11 +22,10 @@ import { Loader2, MailCheck } from "lucide-react";
 
 type View = "request" | "sent" | "update" | "verifying";
 
-// The function is renamed
 export default function ForgotPasswordClient() {
   const supabase = createClient();
   const router = useRouter();
-  const searchParams = useSearchParams(); // This is now safely inside a client component
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -32,6 +33,7 @@ export default function ForgotPasswordClient() {
   const [view, setView] = useState<View>("verifying");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // This useEffect hook for handling the URL is correct and remains unchanged.
   useEffect(() => {
     const code = searchParams.get("code");
     const errorDescription = searchParams.get("error_description");
@@ -100,7 +102,8 @@ export default function ForgotPasswordClient() {
       subscription.unsubscribe();
     };
   }, [supabase.auth, searchParams, router]);
-
+  
+  // The handlePasswordResetRequest function is correct and remains unchanged.
   const handlePasswordResetRequest = async (
     e: React.FormEvent<HTMLFormElement>
   ) => {
@@ -118,6 +121,7 @@ export default function ForgotPasswordClient() {
     }
   };
 
+  // --- THIS IS THE MODIFIED FUNCTION ---
   const handleUpdatePassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -135,14 +139,19 @@ export default function ForgotPasswordClient() {
       setErrorMessage(error.message);
     } else {
       await supabase.auth.signOut();
+      
+      // ✨ ADDED THE SUCCESS TOAST HERE ✨
       toast.success("Password updated successfully!", {
         description: "Please log in with your new password.",
       });
+      
       router.push("/login");
     }
     setIsLoading(false);
   };
+  // --- END OF MODIFICATION ---
 
+  // The renderContent function and the final return statement are correct and remain unchanged.
   const renderContent = () => {
     switch (view) {
       case "verifying":

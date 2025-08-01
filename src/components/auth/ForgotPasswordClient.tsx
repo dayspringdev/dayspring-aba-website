@@ -18,9 +18,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Loader2, MailCheck } from "lucide-react";
+import { Loader2, MailCheck, CheckCircle } from "lucide-react"; // Import CheckCircle
 
-type View = "request" | "sent" | "update" | "verifying";
+// Add 'success' to the View type to handle the final confirmation screen
+type View = "request" | "sent" | "update" | "verifying" | "success";
 
 export default function ForgotPasswordClient() {
   const supabase = createClient();
@@ -33,7 +34,6 @@ export default function ForgotPasswordClient() {
   const [view, setView] = useState<View>("verifying");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // This useEffect hook for handling the URL is correct and remains unchanged.
   useEffect(() => {
     const code = searchParams.get("code");
     const errorDescription = searchParams.get("error_description");
@@ -60,41 +60,9 @@ export default function ForgotPasswordClient() {
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = supabase.auth.onAuthStateChange((event) => {
       if (event === "PASSWORD_RECOVERY") {
         setView("update");
-      } else if (event === "SIGNED_IN" && session) {
-        supabase.auth.getClaims().then(({ data: claims }) => {
-          const amr = claims?.claims?.amr as { method: string }[] | undefined;
-          const isRecovery = amr?.some((m) => m.method === "recovery") ?? false;
-          if (isRecovery) {
-            setView("update");
-          } else {
-            setView("request");
-          }
-        });
-      } else if (event === "INITIAL_SESSION" && !session) {
-        supabase.auth.exchangeCodeForSession(code).then(({ data, error }) => {
-          if (error) {
-            console.error("Code exchange error:", error.message);
-            setView("request");
-          } else if (data.session) {
-            supabase.auth.getClaims().then(({ data: claims }) => {
-              const amr = claims?.claims?.amr as
-                | { method: string }[]
-                | undefined;
-              const isRecovery =
-                amr?.some((m) => m.method === "recovery") ?? false;
-              if (isRecovery) {
-                setView("update");
-              } else {
-                setView("request");
-              }
-            });
-          } else {
-            setView("request");
-          }
-        });
       }
     });
 
@@ -103,7 +71,6 @@ export default function ForgotPasswordClient() {
     };
   }, [supabase.auth, searchParams, router]);
 
-  // The handlePasswordResetRequest function is correct and remains unchanged.
   const handlePasswordResetRequest = async (
     e: React.FormEvent<HTMLFormElement>
   ) => {
@@ -134,7 +101,7 @@ export default function ForgotPasswordClient() {
     }
     setIsLoading(true);
 
-    // First, update the user's password. This creates a new session.
+    // Update the password, which also creates a new session.
     const { error: updateError } = await supabase.auth.updateUser({
       password: newPassword,
     });
@@ -142,26 +109,38 @@ export default function ForgotPasswordClient() {
     if (updateError) {
       setErrorMessage(updateError.message);
       setIsLoading(false);
-      return; // Stop execution on error
+      return;
     }
 
-    // Immediately after a successful update, sign the user out.
-    // This clears the new session before we navigate away.
-    const { error: signOutError } = await supabase.auth.signOut();
+    // Immediately sign out to clear the session.
+    await supabase.auth.signOut();
 
-    if (signOutError) {
-      // If sign-out fails, it's not critical, but we should log it and still proceed.
-      console.error("Sign out failed after password update:", signOutError);
-    }
-
-    // Now that the session is guaranteed to be cleared,
-    // we can safely redirect to the login page with our success message.
-    router.push("/login?message=password-updated");
+    // Change the component's state to show the success message instead of redirecting.
+    setView("success");
+    setIsLoading(false);
   };
 
-  // The renderContent function and the final return statement are correct and remain unchanged.
   const renderContent = () => {
     switch (view) {
+      // This is the new success view, shown after the password is changed.
+      case "success":
+        return (
+          <>
+            <CardHeader className="items-center text-center">
+              <CheckCircle className="h-12 w-12 text-green-500 mb-2" />
+              <CardTitle className="text-2xl">Password Updated!</CardTitle>
+            </CardHeader>
+            <CardContent className="text-center text-sm text-muted-foreground">
+              <p>Your password has been changed successfully.</p>
+            </CardContent>
+            <CardFooter>
+              <Button asChild className="w-full">
+                <Link href="/login">Proceed to Login</Link>
+              </Button>
+            </CardFooter>
+          </>
+        );
+
       case "verifying":
         return (
           <CardContent className="text-center">
@@ -287,13 +266,14 @@ export default function ForgotPasswordClient() {
     <div className="flex min-h-[80vh] w-full items-center justify-center bg-background/50">
       <Card className="w-full max-w-sm">
         {renderContent()}
-        <CardFooter>
-          {view !== "sent" && (
+        {/* Update the footer to not show "Back to Login" on the success or sent screens */}
+        {view !== "sent" && view !== "success" && (
+          <CardFooter>
             <Button asChild variant="link" className="text-xs mx-auto">
               <Link href="/login">← Back to Login</Link>
             </Button>
-          )}
-        </CardFooter>
+          </CardFooter>
+        )}
       </Card>
     </div>
   );

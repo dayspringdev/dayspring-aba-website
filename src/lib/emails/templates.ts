@@ -1,7 +1,7 @@
 // src/lib/emails/templates.ts
 
 import type { EmailDataMap } from "./types";
-import { generateGoogleCalendarLink } from "@/lib/utils"; // <-- IMPORT our new helper
+// import { generateGoogleCalendarLink } from "@/lib/utils"; // <-- This is still needed for the admin panel
 
 // The base template function. This creates the consistent wrapper for all emails.
 const baseTemplate = (
@@ -23,15 +23,11 @@ const baseTemplate = (
     <td align="center">
       <table width="600" border="0" cellspacing="0" cellpadding="40" style="max-width: 600px; width: 100%; margin: 40px auto; background-color: #ffffff; border: 1px solid #dee2e6; border-radius: 8px;">
         
-        <!-- ✅ REPLACED FLEX HEADER WITH TABLE-BASED LAYOUT -->
         <tr>
           <td align="center">
             <table cellpadding="0" cellspacing="0" border="0" style="width: auto;">
               <tr>
-
-              <!-- Logo Box -->
               <td style="padding-right:12px;">
-                  <!-- The link makes the logo clickable, leading to your homepage -->
                   <a href="https://dayspringaba.ca" target="_blank">
                       <img 
                           src="https://dayspringaba.ca/email-logo.png" 
@@ -42,8 +38,6 @@ const baseTemplate = (
                       />
                   </a>
               </td>
-
-                <!-- Text Block -->
                 <td style="vertical-align: top; text-align: left;">
                   <h1 style="font-size: 24px; font-weight: bold; letter-spacing: 0.025em; color: #4b739b; margin: 0; line-height: 1.2;">
                     <span style="display: block; line-height: 1;">Dayspring</span>
@@ -94,20 +88,16 @@ const baseTemplate = (
 </html>
 `;
 
-// A generic interface for a single template, using a generic type parameter `T` for the data.
 interface EmailTemplate<T> {
   subject: (data: T) => string;
   body: (data: T) => string;
 }
 
-// A TypeScript Mapped Type.
 type TemplatesObject = {
   [K in keyof EmailDataMap]: EmailTemplate<EmailDataMap[K]>;
 };
 
-// The main templates object.
 export const templates: TemplatesObject = {
-  // --- Admin Notifications ---
   adminNewBookingNotice: {
     subject: (data) =>
       `New Consultation Request: ${data.firstName} ${data.lastName}`,
@@ -138,7 +128,6 @@ export const templates: TemplatesObject = {
     },
   },
 
-  // --- Client-Facing Emails ---
   bookingRequestUser: {
     subject: () => "Consultation Request Received - Dayspring BTS",
     body: (data) => {
@@ -150,7 +139,7 @@ export const templates: TemplatesObject = {
             Thank you for your request! We've received your request for a consultation on <strong>${data.formattedDate}</strong>.
           </p>
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">
-            Our team will review it shortly and send a separate confirmation email once it's approved. We look forward to speaking with you!
+            Our team will review it shortly and send a separate confirmation email once it's approved. You will receive a calendar invitation shortly after. We look forward to speaking with you!
           </p>
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">*This is an automated notification. Please do not reply to this email. For any questions, please contact us through the website.*</p>
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">Sincerely,<br>The Dayspring Team</p>
@@ -164,45 +153,14 @@ export const templates: TemplatesObject = {
     body: (data) => {
       const title = "Booking Confirmed";
       const preheader = `Your consultation is confirmed for ${data.formattedDate}.`;
-
-      // Create a 'Booking'-like object that our helper function understands
-      const bookingForLink = {
-        first_name: data.firstName,
-        last_name: data.lastName,
-        email: data.email,
-        slot_time: data.slotTime,
-        notes: data.notes,
-        id: data.bookingId,
-        created_at: new Date().toISOString(),
-        status: "confirmed" as const,
-      };
-
-      const googleLink = generateGoogleCalendarLink(
-        bookingForLink,
-        data.businessEmail
-      );
-      const icsLink = `https://www.dayspringaba.ca/api/public/bookings/${data.bookingId}/ics`;
-
       const content = `
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">Hi ${data.firstName},</p>
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">
             Great news! Your consultation with Dayspring Behavioural Therapeutic Services is confirmed for <strong>${data.formattedDate}</strong>.
           </p>
-          
-          <!-- ADDED CALENDAR BUTTONS -->
-          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 20px 0;">
-            <tr>
-              <td align="center">
-                <a href="${googleLink}" target="_blank" style="display: inline-block; padding: 12px 24px; margin: 5px; font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; background-color: #4285F4; border-radius: 5px;">
-                  Add to Google Calendar
-                </a>
-                <a href="${icsLink}" style="display: inline-block; padding: 12px 24px; margin: 5px; font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; background-color: #0073C1; border-radius: 5px;">
-                  Add to Outlook/Other
-                </a>
-              </td>
-            </tr>
-          </table>
-
+          <p style="font-size: 16px; color: #495057; line-height: 1.6;">
+            You should receive a separate calendar invitation to your email shortly. Please be sure to accept it to add it to your calendar.
+          </p>
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">
             We look forward to speaking with you. If you have any questions before then, please visit our website and use the contact form!
           </p>
@@ -238,41 +196,14 @@ export const templates: TemplatesObject = {
     body: (data) => {
       const title = "Booking Rescheduled";
       const preheader = `Your consultation has been rescheduled to ${data.formattedDate}.`;
-
-      const bookingForLink = {
-        first_name: data.firstName,
-        last_name: data.lastName,
-        email: data.email,
-        slot_time: data.slotTime,
-        notes: data.notes,
-        id: data.bookingId,
-        created_at: new Date().toISOString(),
-        status: "confirmed" as const,
-      };
-
-      const googleLink = generateGoogleCalendarLink(
-        bookingForLink,
-        data.businessEmail
-      );
-      const icsLink = `https://www.dayspringaba.ca/api/public/bookings/${data.bookingId}/ics`;
-
       const content = `
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">Hi ${data.firstName},</p>
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">
             Please note that your consultation with Dayspring Behavioural Therapeutic Services has been rescheduled to a new time: <strong>${data.formattedDate}</strong>.
           </p>
-          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 20px 0;">
-            <tr>
-              <td align="center">
-                <a href="${googleLink}" target="_blank" style="display: inline-block; padding: 12px 24px; margin: 5px; font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; background-color: #4285F4; border-radius: 5px;">
-                  Add to Google Calendar
-                </a>
-                <a href="${icsLink}" style="display: inline-block; padding: 12px 24px; margin: 5px; font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; background-color: #0073C1; border-radius: 5px;">
-                  Add to Outlook/Other
-                </a>
-              </td>
-            </tr>
-          </table>
+          <p style="font-size: 16px; color: #495057; line-height: 1.6;">
+            You should receive a separate calendar invitation with the updated details. Please accept the new invitation to ensure your calendar is correct.
+          </p>
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">
             This new time is confirmed. We look forward to speaking with you then.
           </p>

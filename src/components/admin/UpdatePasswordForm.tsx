@@ -13,14 +13,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Eye, EyeOff } from "lucide-react"; // <-- Import the icons
+import { Eye, EyeOff } from "lucide-react";
+import { useRouter } from "next/navigation"; // 1. IMPORT the router
+import { createClient } from "@/lib/supabase/client"; // 2. IMPORT the Supabase client
 
 export function UpdatePasswordForm() {
+  const router = useRouter(); // 3. INITIALIZE the router
+  const supabase = createClient(); // 4. INITIALIZE the Supabase client
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-
-  // --- NEW: State to manage password visibility ---
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
@@ -28,7 +30,6 @@ export function UpdatePasswordForm() {
     e.preventDefault();
     setIsLoading(true);
 
-    // This logic remains unchanged
     const promise = fetch("/api/admin/settings/password", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -43,10 +44,14 @@ export function UpdatePasswordForm() {
 
     toast.promise(promise, {
       loading: "Updating password...",
-      success: (data) => {
-        setNewPassword("");
-        setConfirmPassword("");
-        return data.message;
+      // 5. UPDATE the success handler
+      success: async () => {
+        // Sign out to invalidate the current session
+        await supabase.auth.signOut();
+        // Redirect to the login page
+        router.push("/login");
+        // Return a clear message for the toast
+        return "Password updated successfully! Please log in with your new password.";
       },
       error: (err) => err.message,
       finally: () => setIsLoading(false),
@@ -58,25 +63,22 @@ export function UpdatePasswordForm() {
       <CardHeader>
         <CardTitle>Update Password</CardTitle>
         <CardDescription>
-          Choose a new, strong password. You will be logged out of other
-          sessions.
+          Choose a new, strong password. You will be logged out upon success.
         </CardDescription>
       </CardHeader>
       <form onSubmit={handleSubmit}>
         <CardContent className="space-y-4">
-          {/* --- NEW: New Password Input with Icon --- */}
           <div className="space-y-2">
             <Label htmlFor="new-password">New Password</Label>
             <div className="relative">
               <Input
                 id="new-password"
-                // Dynamically set the type based on state
                 type={showNewPassword ? "text" : "password"}
                 required
                 minLength={8}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
-                className="pr-10" // Add padding to the right for the icon
+                className="pr-10"
               />
               <Button
                 type="button"
@@ -93,19 +95,17 @@ export function UpdatePasswordForm() {
               </Button>
             </div>
           </div>
-          {/* --- NEW: Confirm Password Input with Icon --- */}
           <div className="space-y-2">
             <Label htmlFor="confirm-password">Confirm New Password</Label>
             <div className="relative">
               <Input
                 id="confirm-password"
-                // Dynamically set the type based on state
                 type={showConfirmPassword ? "text" : "password"}
                 required
                 minLength={8}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="pr-10" // Add padding to the right for the icon
+                className="pr-10"
               />
               <Button
                 type="button"

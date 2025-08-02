@@ -15,9 +15,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation"; // 1. IMPORT the router
 
 export function UpdateEmailForm() {
   const supabase = createClient();
+  const router = useRouter(); // 2. INITIALIZE the router
   const [currentEmail, setCurrentEmail] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [confirmEmail, setConfirmEmail] = useState("");
@@ -38,7 +40,6 @@ export function UpdateEmailForm() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // --- THIS IS THE NEW VALIDATION LOGIC ---
     if (!newEmail || !confirmEmail) {
       toast.error("Please fill out both new email fields.");
       return;
@@ -68,9 +69,13 @@ export function UpdateEmailForm() {
 
     toast.promise(promise, {
       loading: "Sending verification link...",
-      success: (data) => {
-        setNewEmail("");
-        setConfirmEmail("");
+      // 3. UPDATE the success handler
+      success: async (data) => {
+        // First, sign the user out
+        await supabase.auth.signOut();
+        // Then, redirect them to the login page
+        router.push("/login");
+        // Finally, return the success message for the toast
         return data.message;
       },
       error: (err) => err.message,
@@ -120,7 +125,6 @@ export function UpdateEmailForm() {
           </div>
         </CardContent>
         <CardFooter className="border-t pt-6 mt-4">
-          {/* REMOVED: The complex disabled logic is gone */}
           <Button type="submit" disabled={isLoading}>
             {isLoading ? (
               <>

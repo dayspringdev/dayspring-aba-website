@@ -237,11 +237,38 @@ export const templates: TemplatesObject = {
     body: (data) => {
       const title = "Booking Rescheduled";
       const preheader = `Your consultation has been rescheduled to ${data.formattedDate}.`;
+
+      const bookingForLink = {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        email: data.email,
+        slot_time: data.slotTime,
+        notes: data.notes,
+        id: data.bookingId,
+        created_at: new Date().toISOString(),
+        status: "confirmed" as const,
+      };
+
+      const googleLink = generateGoogleCalendarLink(bookingForLink);
+      const icsLink = `https://www.dayspringaba.ca/api/public/bookings/${data.bookingId}/ics`;
+
       const content = `
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">Hi ${data.firstName},</p>
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">
             Please note that your consultation with Dayspring Behavioural Therapeutic Services has been rescheduled to a new time: <strong>${data.formattedDate}</strong>.
           </p>
+          <table width="100%" border="0" cellspacing="0" cellpadding="0" style="margin: 20px 0;">
+            <tr>
+              <td align="center">
+                <a href="${googleLink}" target="_blank" style="display: inline-block; padding: 12px 24px; margin: 5px; font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; background-color: #4285F4; border-radius: 5px;">
+                  Add to Google Calendar
+                </a>
+                <a href="${icsLink}" style="display: inline-block; padding: 12px 24px; margin: 5px; font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; background-color: #0073C1; border-radius: 5px;">
+                  Add to Outlook/Other
+                </a>
+              </td>
+            </tr>
+          </table>
           <p style="font-size: 16px; color: #495057; line-height: 1.6;">
             This new time is confirmed. We look forward to speaking with you then.
           </p>

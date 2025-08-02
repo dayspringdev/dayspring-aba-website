@@ -32,7 +32,12 @@ export interface BookingCancelledData {
 }
 
 export interface BookingRescheduledData {
+  bookingId: number;
   firstName: string;
+  lastName: string;
+  email: string;
+  slotTime: string;
+  notes: string | null;
   formattedDate: string;
 }
 

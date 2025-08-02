@@ -123,7 +123,12 @@ export async function PATCH(
         await sendEmail("bookingRescheduled", {
           to: rescheduledBooking.email,
           data: {
+            bookingId: rescheduledBooking.id,
             firstName: rescheduledBooking.first_name,
+            lastName: rescheduledBooking.last_name,
+            email: rescheduledBooking.email,
+            slotTime: rescheduledBooking.slot_time,
+            notes: rescheduledBooking.notes,
             formattedDate: formattedDate,
           },
         });

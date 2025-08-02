@@ -29,12 +29,13 @@ import { RescheduleDialog } from "@/components/admin/RescheduleDialog";
 import { NewBookingDialog } from "@/components/admin/NewBookingDialog";
 import { CalendarPlus } from "lucide-react";
 import { generateGoogleCalendarLink } from "@/lib/utils";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+// No longer need the DropdownMenu components
+// import {
+//   DropdownMenu,
+//   DropdownMenuContent,
+//   DropdownMenuItem,
+//   DropdownMenuTrigger,
+// } from "@/components/ui/dropdown-menu";
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
@@ -46,7 +47,7 @@ type UpdatingState = {
 
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
-  const [businessEmail, setBusinessEmail] = useState<string>(""); // <-- ADD state for the email
+  const [businessEmail, setBusinessEmail] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [bookingToReschedule, setBookingToReschedule] =
     useState<Booking | null>(null);
@@ -62,11 +63,10 @@ export default function BookingsPage() {
       if (!response.ok) {
         throw new Error("Failed to fetch bookings.");
       }
-      // UPDATE: Destructure the new response object
       const { bookings: data, businessEmail: fetchedEmail } =
         await response.json();
       setBookings(data);
-      setBusinessEmail(fetchedEmail); // Store the fetched email in state
+      setBusinessEmail(fetchedEmail);
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "An unknown error occurred."
@@ -162,31 +162,19 @@ export default function BookingsPage() {
         updatingState?.action === "cancelling";
       return (
         <div className="flex flex-wrap gap-2 justify-end items-center">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline" disabled={!businessEmail}>
-                <CalendarPlus className="mr-2 h-4 w-4" />
-                Add to Calendar
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem asChild className="cursor-pointer">
-                <a
-                  // THIS IS THE FIX: Pass the businessEmail from state
-                  href={generateGoogleCalendarLink(booking, businessEmail)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Google Calendar
-                </a>
-              </DropdownMenuItem>
-              <DropdownMenuItem asChild className="cursor-pointer">
-                <a href={`/api/admin/bookings/${booking.id}/ics`}>
-                  ICS File (Outlook, Apple)
-                </a>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {/* === THIS IS THE REFACTORED PART === */}
+          {/* Replaced the DropdownMenu with a direct Button link */}
+          <Button asChild size="sm" variant="outline" disabled={!businessEmail}>
+            <a
+              href={generateGoogleCalendarLink(booking, businessEmail)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <CalendarPlus className="mr-2 h-4 w-4" />
+              Setup Meeting
+            </a>
+          </Button>
+          {/* === END OF REFACTOR === */}
 
           <Button
             size="sm"

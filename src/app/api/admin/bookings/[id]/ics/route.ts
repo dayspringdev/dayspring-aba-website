@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { formatInTimeZone } from "date-fns-tz";
 import { NextRequest, NextResponse } from "next/server";
-// import { TIMEZONE } from "@/lib/config";
+import { getBusinessEmail } from "@/lib/data-access/homepage";
 
 export async function GET(
   request: NextRequest,
@@ -11,7 +11,6 @@ export async function GET(
 ) {
   const supabase = createClient();
 
-  // 1. Authenticate the request
   const {
     data: { user },
   } = await supabase.auth.getUser();
@@ -19,35 +18,38 @@ export async function GET(
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
 
-  // 2. Fetch the specific booking
   const bookingId = parseInt(params.id, 10);
-  const { data: booking, error } = await supabase
-    .from("bookings")
-    .select("*")
-    .eq("id", bookingId)
-    .single();
+
+  // Fetch booking and business email in parallel
+  const [bookingRes, businessEmail] = await Promise.all([
+    supabase.from("bookings").select("*").eq("id", bookingId).single(),
+    getBusinessEmail(),
+  ]);
+
+  const { data: booking, error } = bookingRes;
 
   if (error || !booking) {
     return NextResponse.json({ error: "Booking not found" }, { status: 404 });
   }
+  if (!businessEmail) {
+    console.error("Business email not found for ICS generation.");
+  }
 
-  // 3. Format dates into the required UTC 'Zulu' format (YYYYMMDDTHHMMSSZ)
   const startTime = new Date(booking.slot_time);
-  // Assuming a 15-minute consultation for the end time. Adjust if needed.
   const endTime = new Date(startTime.getTime() + 15 * 60 * 1000);
   const now = new Date();
-
   const formatForICS = (date: Date) =>
     formatInTimeZone(date, "Etc/UTC", "yyyyMMdd'T'HHmmss'Z'");
 
-  const formattedStartTime = formatForICS(startTime);
-  const formattedEndTime = formatForICS(endTime);
-  const formattedNow = formatForICS(now);
+  const description =
+    `This is your scheduled 15-minute consultation with Dayspring Behavioural Therapeutic Services.\\n\\nYour submitted notes: ${
+      booking.notes || "N/A"
+    }\\n\\nFor more information, please visit https://dayspringaba.ca`.replace(
+      /\r\n/g,
+      "\\n"
+    );
 
-  // 4. Create the .ics file content as a string
-  const description = (booking.notes || "No additional notes.")
-    .replace(/\r\n/g, "\\n")
-    .replace(/\n/g, "\\n");
+  const businessName = "Dayspring BTS";
 
   const icsContent = [
     "BEGIN:VCALENDAR",
@@ -55,18 +57,24 @@ export async function GET(
     "PRODID:-//DayspringBTS//NONSGML v1.0//EN",
     "BEGIN:VEVENT",
     `UID:${booking.id}@dayspringaba.ca`,
-    `DTSTAMP:${formattedNow}`,
-    `DTSTART:${formattedStartTime}`,
-    `DTEND:${formattedEndTime}`,
-    `SUMMARY:Consultation: ${booking.first_name} ${booking.last_name}`,
+    `DTSTAMP:${formatForICS(now)}`,
+    `DTSTART:${formatForICS(startTime)}`,
+    `DTEND:${formatForICS(endTime)}`,
+    `SUMMARY:Consultation with ${businessName}`,
     `DESCRIPTION:${description}`,
-    // Add the client as a guest to the event
+    businessEmail
+      ? `ORGANIZER;CN="${businessName}":mailto:${businessEmail}`
+      : "",
+    businessEmail
+      ? `ATTENDEE;CN="${businessName}";ROLE=CHAIR:mailto:${businessEmail}`
+      : "",
     `ATTENDEE;CN="${booking.first_name} ${booking.last_name}";ROLE=REQ-PARTICIPANT:mailto:${booking.email}`,
     "END:VEVENT",
     "END:VCALENDAR",
-  ].join("\r\n");
+  ]
+    .filter(Boolean)
+    .join("\r\n");
 
-  // 5. Return the response with correct headers for a file download
   const headers = new Headers();
   headers.set("Content-Type", "text/calendar; charset=utf-8");
   headers.set("Content-Disposition", 'attachment; filename="appointment.ics"');

@@ -3,9 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getAvailableSlots } from "@/lib/db";
 import { NextRequest, NextResponse } from "next/server";
 import { parseISO } from "date-fns";
-import { formatInTimeZone } from "date-fns-tz"; // IMPORT THE NEW FUNCTION
-import { sendEmail } from "@/lib/emails/send"; // <-- IMPORT our new service
-import { TIMEZONE } from "@/lib/config"; // IMPORT our new constant
+import { formatInTimeZone } from "date-fns-tz";
+import { sendEmail } from "@/lib/emails/send";
+import { TIMEZONE } from "@/lib/config";
+import { getBusinessEmail } from "@/lib/data-access/homepage"; // Import the new helper
 
 // The PATCH function handles status updates and rescheduling
 export async function PATCH(
@@ -19,6 +20,15 @@ export async function PATCH(
   const bookingId = parseInt(id, 10);
   if (isNaN(bookingId)) {
     return NextResponse.json({ error: "Invalid booking ID." }, { status: 400 });
+  }
+
+  // --- Fetch the business email once ---
+  const businessEmail = await getBusinessEmail();
+  if (!businessEmail) {
+    // Log the error but don't block the core functionality
+    console.error(
+      "CRITICAL: Business email not found. Calendar invites may be incomplete."
+    );
   }
 
   // --- LOGIC FOR STATUS UPDATE ---
@@ -44,7 +54,7 @@ export async function PATCH(
     }
 
     // Send email notification based on the new status
-    if (updatedBooking) {
+    if (updatedBooking && businessEmail) {
       const formattedDate = formatInTimeZone(
         new Date(updatedBooking.slot_time),
         TIMEZONE,
@@ -56,13 +66,14 @@ export async function PATCH(
           await sendEmail("bookingConfirmed", {
             to: updatedBooking.email,
             data: {
-              bookingId: updatedBooking.id, // Provide the ID
+              bookingId: updatedBooking.id,
               firstName: updatedBooking.first_name,
-              lastName: updatedBooking.last_name, // Provide the last name
-              email: updatedBooking.email, // Provide the email
-              slotTime: updatedBooking.slot_time, // Provide the ISO time string
-              notes: updatedBooking.notes, // Provide the notes
+              lastName: updatedBooking.last_name,
+              email: updatedBooking.email,
+              slotTime: updatedBooking.slot_time,
+              notes: updatedBooking.notes,
               formattedDate: formattedDate,
+              businessEmail: businessEmail, // Pass the email
             },
           });
         } else if (status === "cancelled") {
@@ -75,7 +86,6 @@ export async function PATCH(
         }
       } catch (emailError) {
         console.error("Failed to send status update email:", emailError);
-        // Don't block the API response if email fails
       }
     }
 
@@ -112,7 +122,7 @@ export async function PATCH(
       );
     }
 
-    if (rescheduledBooking) {
+    if (rescheduledBooking && businessEmail) {
       try {
         const formattedDate = formatInTimeZone(
           new Date(rescheduledBooking.slot_time),
@@ -130,6 +140,7 @@ export async function PATCH(
             slotTime: rescheduledBooking.slot_time,
             notes: rescheduledBooking.notes,
             formattedDate: formattedDate,
+            businessEmail: businessEmail, // Pass the email
           },
         });
       } catch (emailError) {

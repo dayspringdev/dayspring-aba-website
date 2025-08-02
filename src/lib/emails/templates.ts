@@ -172,14 +172,15 @@ export const templates: TemplatesObject = {
         email: data.email,
         slot_time: data.slotTime,
         notes: data.notes,
-        // Add dummy data for fields the helper expects but we don't use here
         id: data.bookingId,
         created_at: new Date().toISOString(),
         status: "confirmed" as const,
       };
 
-      const googleLink = generateGoogleCalendarLink(bookingForLink);
-      // NOTE: We still need to create this public API route
+      const googleLink = generateGoogleCalendarLink(
+        bookingForLink,
+        data.businessEmail
+      );
       const icsLink = `https://www.dayspringaba.ca/api/public/bookings/${data.bookingId}/ics`;
 
       const content = `
@@ -249,7 +250,10 @@ export const templates: TemplatesObject = {
         status: "confirmed" as const,
       };
 
-      const googleLink = generateGoogleCalendarLink(bookingForLink);
+      const googleLink = generateGoogleCalendarLink(
+        bookingForLink,
+        data.businessEmail
+      );
       const icsLink = `https://www.dayspringaba.ca/api/public/bookings/${data.bookingId}/ics`;
 
       const content = `

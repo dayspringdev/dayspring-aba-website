@@ -7,6 +7,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import { createClient } from "@/lib/supabase/server";
 import { sendEmail } from "@/lib/emails/send";
 import { TIMEZONE } from "@/lib/config";
+import { getBusinessEmail } from "@/lib/data-access/homepage"; // Import the new helper
 
 export async function POST(request: NextRequest) {
   const supabase = createClient();
@@ -74,11 +75,21 @@ export async function POST(request: NextRequest) {
 
     // --- EMAIL LOGIC ---
     try {
-      const { data: adminEmail, error: rpcError } =
-        await supabase.rpc("get_admin_email");
+      // Fetch both admin/business emails concurrently
+      const [adminEmail, businessEmail] = await Promise.all([
+        supabase.rpc("get_admin_email"),
+        getBusinessEmail(),
+      ]);
 
-      if (rpcError || !adminEmail) {
-        throw new Error(`Could not fetch admin email: ${rpcError?.message}`);
+      if (adminEmail.error || !adminEmail.data) {
+        throw new Error(
+          `Could not fetch admin email: ${adminEmail.error?.message}`
+        );
+      }
+      if (!businessEmail) {
+        console.error(
+          "CRITICAL: Business email not found. Calendar invites may be incomplete."
+        );
       }
 
       const formattedDate = formatInTimeZone(
@@ -90,7 +101,6 @@ export async function POST(request: NextRequest) {
       const emailPromises = [];
 
       if (status === "pending") {
-        // This is for a public booking request. Send the "Request Received" email.
         emailPromises.push(
           sendEmail("bookingRequestUser", {
             to: clientDetails.email,
@@ -100,10 +110,7 @@ export async function POST(request: NextRequest) {
             },
           })
         );
-      } else if (status === "confirmed") {
-        // --- THIS IS THE FIX ---
-        // This is for an admin-created booking. Send the "Booking Confirmed" email.
-        // We now provide all the data required by the BookingConfirmedData type.
+      } else if (status === "confirmed" && businessEmail) {
         emailPromises.push(
           sendEmail("bookingConfirmed", {
             to: newBooking.email,
@@ -115,16 +122,15 @@ export async function POST(request: NextRequest) {
               slotTime: newBooking.slot_time,
               notes: newBooking.notes,
               formattedDate,
+              businessEmail: businessEmail, // Pass the email
             },
           })
         );
       }
-      // --- END OF FIX ---
 
-      // Always send a notification to the admin.
       emailPromises.push(
         sendEmail("adminNewBookingNotice", {
-          to: adminEmail,
+          to: adminEmail.data,
           data: {
             firstName: clientDetails.firstName,
             lastName: clientDetails.lastName,

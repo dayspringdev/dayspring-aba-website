@@ -1,3 +1,5 @@
+// FILE: src/app/(admin)/admin/bookings/page.tsx
+
 "use client";
 
 import { useEffect, useState } from "react";
@@ -25,8 +27,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { RescheduleDialog } from "@/components/admin/RescheduleDialog";
 import { NewBookingDialog } from "@/components/admin/NewBookingDialog";
-import { CalendarPlus } from "lucide-react"; // <-- IMPORT the icon
-import { generateGoogleCalendarLink } from "@/lib/utils"; // <-- IMPORT our new helper
+import { CalendarPlus } from "lucide-react";
+import { generateGoogleCalendarLink } from "@/lib/utils";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -36,7 +38,7 @@ import {
 
 type Booking = Database["public"]["Tables"]["bookings"]["Row"];
 type BookingStatus = Database["public"]["Enums"]["booking_status"];
-// 1. Define a more specific type for our loading state
+
 type UpdatingState = {
   id: number;
   action: "confirming" | "cancelling";
@@ -44,12 +46,12 @@ type UpdatingState = {
 
 export default function BookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [businessEmail, setBusinessEmail] = useState<string>(""); // <-- ADD state for the email
   const [isLoading, setIsLoading] = useState(true);
   const [bookingToReschedule, setBookingToReschedule] =
     useState<Booking | null>(null);
   const [isNewBookingDialogOpen, setIsNewBookingDialogOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  // 2. Use the new, more specific state type
   const [updatingState, setUpdatingState] = useState<UpdatingState>(null);
 
   const fetchBookings = async () => {
@@ -60,8 +62,11 @@ export default function BookingsPage() {
       if (!response.ok) {
         throw new Error("Failed to fetch bookings.");
       }
-      const data = await response.json();
+      // UPDATE: Destructure the new response object
+      const { bookings: data, businessEmail: fetchedEmail } =
+        await response.json();
       setBookings(data);
+      setBusinessEmail(fetchedEmail); // Store the fetched email in state
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "An unknown error occurred."
@@ -79,25 +84,20 @@ export default function BookingsPage() {
     bookingId: number,
     status: BookingStatus
   ) => {
-    // 3. Set the state with both the ID and the specific action
     setUpdatingState({
       id: bookingId,
       action: status === "confirmed" ? "confirming" : "cancelling",
     });
-
     const originalBookings = [...bookings];
-
     try {
       const response = await fetch(`/api/admin/bookings/${bookingId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status }),
       });
-
       if (!response.ok) {
         throw new Error("Could not update booking status.");
       }
-
       toast.success(`Booking has been ${status}.`);
       fetchBookings();
     } catch (err) {
@@ -107,7 +107,6 @@ export default function BookingsPage() {
       });
       setBookings(originalBookings);
     } finally {
-      // 4. Reset the state to null when done
       setUpdatingState(null);
     }
   };
@@ -163,10 +162,9 @@ export default function BookingsPage() {
         updatingState?.action === "cancelling";
       return (
         <div className="flex flex-wrap gap-2 justify-end items-center">
-          {/* DropDown menu for calendar links */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button size="sm" variant="outline">
+              <Button size="sm" variant="outline" disabled={!businessEmail}>
                 <CalendarPlus className="mr-2 h-4 w-4" />
                 Add to Calendar
               </Button>
@@ -174,7 +172,8 @@ export default function BookingsPage() {
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild className="cursor-pointer">
                 <a
-                  href={generateGoogleCalendarLink(booking)}
+                  // THIS IS THE FIX: Pass the businessEmail from state
+                  href={generateGoogleCalendarLink(booking, businessEmail)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -220,7 +219,6 @@ export default function BookingsPage() {
     return null;
   };
 
-  // The rest of the component (return statement, etc.) is unchanged
   return (
     <>
       <div className="space-y-6">

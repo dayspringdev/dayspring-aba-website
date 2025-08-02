@@ -18,13 +18,14 @@ export interface BookingRequestUserData {
 }
 
 export interface BookingConfirmedData {
-  bookingId: number; // For the .ics link
+  bookingId: number;
   firstName: string;
-  lastName: string; // For the event title
-  email: string; // For adding the client as a guest
-  slotTime: string; // ISO string for the start time
-  notes: string | null; // For the event description
-  formattedDate: string; // This one was already there
+  lastName: string;
+  email: string;
+  slotTime: string;
+  notes: string | null;
+  formattedDate: string;
+  businessEmail: string; // Add business email
 }
 
 export interface BookingCancelledData {
@@ -39,6 +40,7 @@ export interface BookingRescheduledData {
   slotTime: string;
   notes: string | null;
   formattedDate: string;
+  businessEmail: string; // Add business email
 }
 
 export interface ContactFormToBusinessData {
